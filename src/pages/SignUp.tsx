@@ -20,10 +20,10 @@ const SignUp = () => {
           <input id="username" className="border h-10 text-xl" />
         </div>
         <div className="mt-4">
-          <label id="username" className="mr-3 text-3xl inline-block w-44">
+          <label id="password" className="mr-3 text-3xl inline-block w-44">
             Password:
           </label>
-          <input id="username" className="border h-10 text-xl" />
+          <input id="password" className="border h-10 text-xl" />
         </div>
         <div className="flex gap-4">
           <button

@@ -8,16 +8,16 @@ const Login = () => {
       <h1 className="text-3xl mt-10">Please book your slot</h1>
       <form className="mt-10">
         <div>
-          <label id="username" className="mr-3 text-3xl inline-block w-44">
-            Username:
+          <label id="email" className="mr-3 text-3xl inline-block w-44">
+            Email:
           </label>
-          <input id="username" className="border h-10 text-xl" />
+          <input id="email" className="border h-10 text-xl" />
         </div>
         <div className="mt-4">
-          <label id="username" className="mr-3 text-3xl inline-block w-44">
+          <label id="password" className="mr-3 text-3xl inline-block w-44">
             Password:
           </label>
-          <input id="username" className="border h-10 text-xl" />
+          <input id="password" className="border h-10 text-xl" />
         </div>
         <div className="flex gap-4">
           <button
