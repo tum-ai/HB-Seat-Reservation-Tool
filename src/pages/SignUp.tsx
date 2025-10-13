@@ -1,41 +1,127 @@
-import { Link } from "react-router-dom";
+// src/pages/SignUp.tsx
+import { Link, useNavigate } from "react-router-dom";
 import Timer from "../components/Timer";
+import { supabase } from "../lib/supabase";
+import { useState, useEffect } from "react";
+import { useAuth } from "../contexts/AuthContext";
 
-const SignUp = () => {
+const SignUp: React.FC = () => {
+  const navigate = useNavigate();
+  const { user, loading } = useAuth();
+
+  useEffect(() => {
+    if (!loading && user) {
+      navigate("/", { replace: true });
+    }
+  }, [user, loading, navigate]);
+  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setInfo(null);
+    setBusy(true);
+
+    // Check if email already exists in public.users
+    const { data: existing, error: selectErr } = await supabase
+      .from("users")
+      .select("id")
+      .eq("email", email)
+      .maybeSingle();
+
+    if (selectErr) {
+      setBusy(false);
+      setError("Error checking email. Try again.");
+      return;
+    }
+
+    if (existing) {
+      setBusy(false);
+      setError("Email already registered. Try signing in instead.");
+      return;
+    }
+
+    // Sign up - this triggers Supabase to send confirmation email (if enabled)
+    const { error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { username }, // will go into user_metadata
+      },
+    });
+
+    setBusy(false);
+
+    if (signUpError) {
+      setError(signUpError.message);
+      return;
+    }
+
+    // On success, Supabase will usually send a confirmation email (depending on your Supabase Auth settings).
+    setInfo(
+      "Check your email for a confirmation link. After confirming, you can sign in."
+    );
+    // Redirect to login after a short delay or immediately
+    navigate("/login");
+  };
+
   return (
     <div className="w-full h-dvh flex flex-col items-start p-20">
       <Timer />
       <h1 className="text-3xl mt-10">Please book your slot</h1>
-      <form className="mt-10">
+      <form className="mt-10" onSubmit={handleSubmit}>
         <div>
-          <label id="email" className="mr-3 text-3xl inline-block w-44">
+          <label htmlFor="email" className="mr-3 text-3xl inline-block w-44">
             Email:
           </label>
-          <input id="email" className="border h-10 text-xl" />
+          <input
+            id="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="border h-10 text-xl"
+          />
         </div>
         <div className="mt-4">
-          <label id="username" className="mr-3 text-3xl inline-block w-44">
+          <label htmlFor="username" className="mr-3 text-3xl inline-block w-44">
             Username:
           </label>
-          <input id="username" className="border h-10 text-xl" />
+          <input
+            id="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className="border h-10 text-xl"
+          />
         </div>
         <div className="mt-4">
-          <label id="password" className="mr-3 text-3xl inline-block w-44">
+          <label htmlFor="password" className="mr-3 text-3xl inline-block w-44">
             Password:
           </label>
-          <input id="password" className="border h-10 text-xl" />
+          <input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="border h-10 text-xl"
+          />
         </div>
+
+        {error && <div className="text-red-600 mt-4">{error}</div>}
+        {info && <div className="text-green-600 mt-4">{info}</div>}
+
         <div className="flex gap-4">
           <button
             type="submit"
+            disabled={busy}
             className="mt-4 p-2 bg-blue-600 text-white rounded-xl"
           >
-            Sign Up
+            {busy ? "Signing up..." : "Sign Up"}
           </button>
-          <Link
-            className="mt-4 p-2 bg-blue-600 text-white rounded-xl"
-            to={"/login"}
-          >
+          <Link className="mt-4 p-2 border rounded-xl" to={"/login"}>
             Sign In
           </Link>
         </div>
