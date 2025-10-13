@@ -27,26 +27,38 @@ const SignUp: React.FC = () => {
     setInfo(null);
     setBusy(true);
 
-    // Check if email already exists in public.users
-    const { data: existing, error: selectErr } = await supabase
-      .from("users")
-      .select("id")
-      .eq("email", email)
-      .maybeSingle();
-
-    if (selectErr) {
+    if (!email || !password || !username) {
       setBusy(false);
-      setError("Error checking email. Try again.");
+      setError("Please fill in all fields");
       return;
     }
 
-    if (existing) {
+    if (password.length < 6) {
       setBusy(false);
-      setError("Email already registered. Try signing in instead.");
+      setError("Password should be at least 6 characters long");
       return;
     }
 
-    // Sign up - this triggers Supabase to send confirmation email (if enabled)
+    const { data: exists, error: rpcError } = await supabase.rpc(
+      "email_exists",
+      {
+        check_email: email,
+      }
+    );
+
+    if (rpcError) {
+      setBusy(false);
+      setError("Error checking email. Please try again.");
+      return;
+    }
+
+    if (exists) {
+      setBusy(false);
+      setError("Email is already registered. Please sign in instead.");
+      return;
+    }
+
+    // If we get here, try to sign up
     const { error: signUpError } = await supabase.auth.signUp({
       email,
       password,
@@ -55,19 +67,22 @@ const SignUp: React.FC = () => {
       },
     });
 
-    setBusy(false);
-
     if (signUpError) {
       setError(signUpError.message);
+      setBusy(false);
       return;
     }
 
-    // On success, Supabase will usually send a confirmation email (depending on your Supabase Auth settings).
+    setBusy(false);
+
+    // Only show success message and redirect if there were no errors
     setInfo(
       "Check your email for a confirmation link. After confirming, you can sign in."
     );
-    // Redirect to login after a short delay or immediately
-    navigate("/login");
+    // Redirect to login only on successful sign up
+    setTimeout(() => {
+      navigate("/login");
+    }, 4000);
   };
 
   return (
