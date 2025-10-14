@@ -41,6 +41,21 @@ const Login: React.FC = () => {
     navigate("/", { replace: true });
   };
 
+  const signInWithSlack = async () => {
+    const {data, error} = await supabase.auth.signInWithOAuth({
+      provider: "slack_oidc",
+      options: {
+        redirectTo: `http://localhost:5173/`,
+      },
+    });
+
+    if (error) {
+      setError(error.message);
+      return;
+    }
+
+  };
+
   return (
     <div className="w-full h-dvh flex flex-col items-start p-20">
       <Timer />
@@ -72,17 +87,41 @@ const Login: React.FC = () => {
 
         {error && <div className="text-red-600 mt-4">{error}</div>}
 
-        <div className="flex gap-4">
-          <button
-            type="submit"
-            disabled={submitting}
-            className="mt-4 p-2 bg-blue-600 text-white rounded-xl"
-          >
-            {submitting ? "Signing in..." : "Sign In"}
-          </button>
-          <Link className="mt-4 p-2 border rounded-xl" to={"/signup"}>
-            Sign Up
-          </Link>
+        <div className="flex flex-col">
+          {/* Email Sign In */}
+          <div className="flex justify-between gap-4">
+            <button
+              type="submit"
+              disabled={submitting}
+              className="mt-4 p-2 bg-blue-600 text-white rounded-xl w-full cursor-pointer"
+            >
+              {submitting ? "Signing in..." : "Sign In with Email"}
+            </button>
+            <Link className="mt-4 p-2 border rounded-xl w-full text-center" to={"/signup"}>
+              Sign Up with Email
+            </Link>
+          </div>
+          
+          {/* Divider */}
+          <div className="flex items-center my-4">
+            <div className="flex-1 border-t border-gray-300"></div>
+            <span className="px-4 text-gray-500">or</span>
+            <div className="flex-1 border-t border-gray-300"></div>
+          </div>
+          
+          {/* Slack Sign In */}
+          {submitting ? (
+            <div className="w-full h-12 flex items-center justify-center text-gray-500">Redirecting...</div>
+          ) : (
+            <img
+              src="https://platform.slack-edge.com/img/sign_in_with_slack.png"
+              srcSet="https://platform.slack-edge.com/img/sign_in_with_slack.png 1x, https://platform.slack-edge.com/img/sign_in_with_slack.png 2x"
+              alt="Sign in with Slack"
+              className="cursor-pointer w-full h-12 object-contain"
+              style={{ display: 'block' }}
+              onClick={signInWithSlack}
+            />
+          )}
         </div>
       </form>
     </div>
