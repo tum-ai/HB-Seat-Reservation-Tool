@@ -1,13 +1,51 @@
 import Timer from "../components/Timer";
-import { useAuth } from "../contexts/AuthContext";
-import { supabase } from "../lib/supabase";
+import ReservationFlow from "../components/ReservationFlow";
+import { supabase, getUserData, getResources } from "../lib/supabase";
 import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+
 
 const Home = () => {
-  const { user } = useAuth();
   const navigate = useNavigate();
+
+  const [userId, setUserId] = useState<string | null>(null);
+  const [userData, setUserData] = useState<any>(null);
+  const [resources, setResources] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchUserId = async () => {
+      const { data, error } = await supabase.auth.getUser();
+      if (error) {
+        setUserId(null);
+        return;
+      }
+      setUserId(data?.user?.id || null);
+    };
+    fetchUserId();
+  }, []);
+
+  useEffect(() => {
+    console.log("userId changed:", userId);
+    const fetchUserData = async () => {
+      if (userId) {
+        const data = await getUserData(userId);
+        setUserData(data);
+      }
+    };
+    fetchUserData();
+  }, [userId]);
+
+  useEffect(() => {
+    const fetchResources = async () => {
+      const data = await getResources();
+      setResources(data);
+      console.log("Fetched resources:", data);
+    };
+    fetchResources();
+  }, []);
+
   const username =
-    user?.user_metadata?.username || user?.email?.split("@")[0] || "Guest";
+    userData?.name || userData?.email?.split("@")[0] || "Guest";
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -26,6 +64,9 @@ const Home = () => {
         </button>
       </div>
       <h1 className="mt-4 text-5xl font-bold">Welcome {username}</h1>
+      <div>
+        <ReservationFlow resources={resources} />
+      </div>
     </div>
   );
 };
