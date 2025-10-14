@@ -42,7 +42,7 @@ const Login: React.FC = () => {
   };
 
   const signInWithSlack = async () => {
-    const {data, error} = await supabase.auth.signInWithOAuth({
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: "slack_oidc",
       options: {
         redirectTo: `http://localhost:5173/`,
@@ -53,7 +53,6 @@ const Login: React.FC = () => {
       setError(error.message);
       return;
     }
-
   };
 
   return (
@@ -97,28 +96,33 @@ const Login: React.FC = () => {
             >
               {submitting ? "Signing in..." : "Sign In with Email"}
             </button>
-            <Link className="mt-4 p-2 border rounded-xl w-full text-center" to={"/signup"}>
+            <Link
+              className="mt-4 p-2 border rounded-xl w-full text-center"
+              to={"/signup"}
+            >
               Sign Up with Email
             </Link>
           </div>
-          
+
           {/* Divider */}
           <div className="flex items-center my-4">
             <div className="flex-1 border-t border-gray-300"></div>
             <span className="px-4 text-gray-500">or</span>
             <div className="flex-1 border-t border-gray-300"></div>
           </div>
-          
+
           {/* Slack Sign In */}
           {submitting ? (
-            <div className="w-full h-12 flex items-center justify-center text-gray-500">Redirecting...</div>
+            <div className="w-full h-12 flex items-center justify-center text-gray-500">
+              Redirecting...
+            </div>
           ) : (
             <img
               src="https://platform.slack-edge.com/img/sign_in_with_slack.png"
               srcSet="https://platform.slack-edge.com/img/sign_in_with_slack.png 1x, https://platform.slack-edge.com/img/sign_in_with_slack.png 2x"
               alt="Sign in with Slack"
               className="cursor-pointer w-full h-12 object-contain"
-              style={{ display: 'block' }}
+              style={{ display: "block" }}
               onClick={signInWithSlack}
             />
           )}
