@@ -136,9 +136,9 @@ const SignUp: React.FC = () => {
           >
             {busy ? "Signing up..." : "Sign Up"}
           </button>
-          <Link className="mt-4 p-2 border rounded-xl" to={"/login"}>
+          {/* <Link className="mt-4 p-2 border rounded-xl" to={"/login"}>
             Sign In
-          </Link>
+          </Link> */}
         </div>
       </form>
     </div>
