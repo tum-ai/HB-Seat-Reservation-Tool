@@ -1,5 +1,5 @@
 // src/pages/SignUp.tsx
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import Timer from "../components/Timer";
 import { supabase } from "../lib/supabase";
 import { useState, useEffect } from "react";

@@ -4,7 +4,6 @@ import { supabase, getUserData, getResources } from "../lib/supabase";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 
-
 const Home = () => {
   const navigate = useNavigate();
 

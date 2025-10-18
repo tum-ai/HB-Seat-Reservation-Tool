@@ -1,8 +1,11 @@
 import { useState, useEffect } from "react";
 import ListEntry from "./ListEntry";
-import type { Resource, Availability } from "../types/type";
-import { supabase } from "../lib/supabase";
+import type { Resource } from "../types/type";
 import { useAuth } from "../contexts/AuthContext";
+import { generateDates, formatDate, getISODate } from "../util/dateUtils";
+import { getDesksForRoom, getAvailableTimeslots } from "../util/resourceUtils";
+import { updateResourceAvailability, createReservation, revertAvailability } from "../util/reservationUtils";
+
 
 interface ReservationFlowProps {
   resources: Resource[];
@@ -15,111 +18,11 @@ const ReservationFlow = ({ resources }: ReservationFlowProps) => {
   const [selectedRoom, setSelectedRoom] = useState<Resource | null>(null);
   const [selectedDesk, setSelectedDesk] = useState<Resource | null>(null);
   const [selectedTimeslot, setSelectedTimeslot] = useState<string | null>(null);
-  const weekdayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-
-  // Generate dates from today to same day next week
-  const generateDates = () => {
-    const dates = [];
-    const today = new Date();
-    
-    for (let i = 0; i < 8; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + i);
-      dates.push(date);
-    }
-    
-    return dates;
-  };
 
   const dates = generateDates();
 
-  // Format date for display
-  const formatDate = (date: Date) => {
-    const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    
-    return `${weekdays[date.getDay()]}, ${months[date.getMonth()]} ${date.getDate()}`;
-  };
-
-  // Get ISO date string for comparison
-  const getISODate = (date: Date) => {
-    return date.toISOString().split('T')[0];
-  };
-
   // Filter rooms (resources with type "Room")
   const rooms = resources.filter((resource) => resource.type === "Room");
-
-  // Get desks for selected room
-  const getDesksForRoom = (room: Resource): Resource[] => {
-    if (!room.subResources || room.subResources.length === 0) {
-      return [];
-    }
-    
-    return resources.filter(
-      (resource) =>
-        resource.type === "Desk" && room.subResources.includes(resource.id)
-    );
-  };
-
-  // Helper function to format time from "0800" to "08:00"
-  const formatTime = (timeStr: string): string => {
-    if (timeStr.length === 4) {
-      return `${timeStr.slice(0, 2)}:${timeStr.slice(2, 4)}`;
-    }
-    return timeStr;
-  };
-
-  // Helper function to format timeslot from "0800-0830" to "08:00-08:30"
-  const formatTimeslot = (slot: string): string => {
-    const [start, end] = slot.split('-');
-    return `${formatTime(start)}-${formatTime(end)}`;
-  };
-
-  // Get availability timeslots for a desk on a specific date
-  const getAvailableTimeslots = (desk: Resource, date: string): string[] => {
-    // Parse availability JSON
-    if (!desk.availability) {
-      return [];
-    }
-
-    try {
-      const availability: Availability = typeof desk.availability === 'string' 
-        ? JSON.parse(desk.availability) 
-        : (desk.availability as unknown as Availability);
-      console.log("Parsed availability:", availability);
-      
-      // Convert date to weekday name
-      const dateObj = new Date(date);
-      const weekdayName = weekdayNames[dateObj.getDay()];
-      
-      // Get timeslots for the specific weekday
-      // Availability structure: { "monday": ["0800-0830", "0830-0900", ...], "tuesday": [...], ... }
-      let timeslots = availability[weekdayName] || [];
-      
-      // Filter out past timeslots if the selected date is today
-      const today = new Date();
-      const isToday = dateObj.toDateString() === today.toDateString();
-      
-      if (isToday) {
-        const currentTime = today.getHours() * 100 + today.getMinutes(); // e.g., 14:30 -> 1430
-        
-        timeslots = timeslots.filter((slot) => {
-          // Parse end time from slot format "0800-0830"
-          const endTimeStr = slot.split('-')[1];
-          const endTime = parseInt(endTimeStr, 10); // e.g., "0830" -> 830
-          
-          // Keep slots where end time is after or equal to current time
-          return endTime >= currentTime;
-        });
-      }
-      
-      // Format timeslots to display with colons (e.g., "08:00-08:30")
-      return timeslots.map(formatTimeslot);
-    } catch (error) {
-      console.error("Error parsing availability:", error);
-      return [];
-    }
-  };
 
   // Reset subsequent selections when a parent selection changes
   useEffect(() => {
@@ -161,74 +64,28 @@ const ReservationFlow = ({ resources }: ReservationFlowProps) => {
 
     const originalAvailability = selectedDesk.availability;
 
-    // Update Availability TODO:make updating availability possible in schema
-    // maybe use rpc for this?
     try {
-      // Get current availability
-      const currentAvailability: Availability =
-        typeof selectedDesk.availability === "string"
-          ? JSON.parse(selectedDesk.availability)
-          : (selectedDesk.availability as unknown as Availability);
-
-      const dateObj = new Date(selectedDate);
-      const weekdayName = weekdayNames[dateObj.getDay()];
-
-      const unformattedTimeslot = selectedTimeslot.replace(/:/g, "");
-      const updatedDailyAvailability = (currentAvailability[weekdayName] || []).filter(
-        (slot) => slot !== unformattedTimeslot
-      );
-
-      const updatedAvailability = {
-        ...currentAvailability,
-        [weekdayName]: updatedDailyAvailability,
-      };
-
-      // Update the resource in Supabase
-      const { error: updateError } = await supabase
-        .from("resources")
-        .update({ availability: JSON.stringify(updatedAvailability) })
-        .eq("id", selectedDesk.id);
-
-      if (updateError) {
-        throw updateError;
-      }
+      await updateResourceAvailability(selectedDesk, selectedDate, selectedTimeslot);
     } catch (error: any) {
-      alert("Failed to update resource availability: " + error.message);
-      return; 
+      alert(`Failed to update resource availability: ${error.message}`);
+      return;
     }
 
-    const { error } = await supabase.from("reservations").insert([
-      {
-        resourceId: selectedDesk.id,
-        userId: user.id,
-        date: new Date(selectedDate).toISOString(),
-        timeslots: [selectedTimeslot],
-      },
-    ]);
-
-    if (error) {
-      alert("Failed to create reservation: " + error.message + ". Reverting availability change.");
-      // Revert the availability change
-      const { error: revertError } = await supabase
-        .from("resources")
-        .update({ availability: originalAvailability })
-        .eq("id", selectedDesk.id);
-
-      if (revertError) {
-        alert(
-          "CRITICAL: Failed to revert availability change. Please check resource availability manually. Error: " +
-            revertError.message
-        );
-      } 
-    } else {
+    try {
+      await createReservation(selectedDesk.id, user.id, selectedDate, selectedTimeslot);
       alert("Reservation created successfully!");
-      // Optionally, reset the selection
+      // Reset selections
       setSelectedDate(null);
       setSelectedRoom(null);
       setSelectedDesk(null);
       setSelectedTimeslot(null);
+    } catch (error: any) {
+      alert(`Failed to create reservation: ${error.message}. Reverting availability change.`);
+      await revertAvailability(selectedDesk.id, originalAvailability);
     }
   };
+
+  const availableTimeslots = selectedDesk && selectedDate ? getAvailableTimeslots(selectedDesk, selectedDate) : [];
 
   return (
     <div className="mt-8">
@@ -274,7 +131,7 @@ const ReservationFlow = ({ resources }: ReservationFlowProps) => {
           <div className="space-y-2">
             <h3 className="text-lg font-semibold mb-2">Select Desk</h3>
             <div className="space-y-2 max-h-96 overflow-y-auto">
-              {getDesksForRoom(selectedRoom).map((desk) => (
+              {getDesksForRoom(selectedRoom, resources).map((desk) => (
                 <ListEntry
                   key={desk.id}
                   text={desk.name}
@@ -293,7 +150,7 @@ const ReservationFlow = ({ resources }: ReservationFlowProps) => {
           <div className="space-y-2">
             <h3 className="text-lg font-semibold mb-2">Select Time</h3>
             <div className="space-y-2 max-h-96 overflow-y-auto">
-              {getAvailableTimeslots(selectedDesk, selectedDate).map((timeslot) => (
+              {availableTimeslots.map((timeslot) => (
                 <ListEntry
                   key={timeslot}
                   text={timeslot}
@@ -301,7 +158,7 @@ const ReservationFlow = ({ resources }: ReservationFlowProps) => {
                   onClick={() => handleTimeslotClick(timeslot)}
                 />
               ))}
-              {getAvailableTimeslots(selectedDesk, selectedDate).length === 0 && (
+              {availableTimeslots.length === 0 && (
                 <p className="text-gray-500 text-sm">No timeslots available</p>
               )}
             </div>
