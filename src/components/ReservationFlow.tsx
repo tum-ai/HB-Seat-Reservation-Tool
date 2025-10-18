@@ -1,12 +1,15 @@
 import { useState, useEffect } from "react";
 import ListEntry from "./ListEntry";
 import type { Resource, Availability } from "../types/type";
+import { supabase } from "../lib/supabase";
+import { useAuth } from "../contexts/AuthContext";
 
 interface ReservationFlowProps {
   resources: Resource[];
 }
 
 const ReservationFlow = ({ resources }: ReservationFlowProps) => {
+  const { user } = useAuth();
   // State management for selections
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedRoom, setSelectedRoom] = useState<Resource | null>(null);
@@ -148,13 +151,33 @@ const ReservationFlow = ({ resources }: ReservationFlowProps) => {
 
   const handleTimeslotClick = (timeslot: string) => {
     setSelectedTimeslot(timeslot);
-    // Here you can add logic to create a reservation
-    console.log("Selected:", {
-      date: selectedDate,
-      room: selectedRoom?.name,
-      desk: selectedDesk?.name,
-      timeslot,
-    });
+  };
+
+  const handleConfirmReservation = async () => {
+    if (!selectedDate || !selectedDesk || !selectedTimeslot || !user) {
+      alert("Please make sure you have selected a date, desk, and timeslot.");
+      return;
+    }
+
+    const { error } = await supabase.from("reservations").insert([
+      {
+        resourceId: selectedDesk.id,
+        userId: user.id,
+        date: new Date(selectedDate).toISOString(),
+        timeslots: [selectedTimeslot],
+      },
+    ]);
+
+    if (error) {
+      alert("Failed to create reservation: " + error.message);
+    } else {
+      alert("Reservation created successfully!");
+      // Optionally, reset the selection
+      setSelectedDate(null);
+      setSelectedRoom(null);
+      setSelectedDesk(null);
+      setSelectedTimeslot(null);
+    }
   };
 
   return (
@@ -246,7 +269,10 @@ const ReservationFlow = ({ resources }: ReservationFlowProps) => {
             <p><strong>Desk:</strong> {selectedDesk?.name}</p>
             <p><strong>Time:</strong> {selectedTimeslot}</p>
           </div>
-          <button className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+          <button
+            onClick={handleConfirmReservation}
+            className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
             Confirm Reservation
           </button>
         </div>
