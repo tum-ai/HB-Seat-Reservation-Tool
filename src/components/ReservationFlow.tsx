@@ -15,6 +15,7 @@ const ReservationFlow = ({ resources }: ReservationFlowProps) => {
   const [selectedRoom, setSelectedRoom] = useState<Resource | null>(null);
   const [selectedDesk, setSelectedDesk] = useState<Resource | null>(null);
   const [selectedTimeslot, setSelectedTimeslot] = useState<string | null>(null);
+  const weekdayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
   // Generate dates from today to same day next week
   const generateDates = () => {
@@ -89,7 +90,6 @@ const ReservationFlow = ({ resources }: ReservationFlowProps) => {
       
       // Convert date to weekday name
       const dateObj = new Date(date);
-      const weekdayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
       const weekdayName = weekdayNames[dateObj.getDay()];
       
       // Get timeslots for the specific weekday
@@ -159,6 +159,44 @@ const ReservationFlow = ({ resources }: ReservationFlowProps) => {
       return;
     }
 
+    const originalAvailability = selectedDesk.availability;
+
+    // Update Availability TODO:make updating availability possible in schema
+    // maybe use rpc for this?
+    try {
+      // Get current availability
+      const currentAvailability: Availability =
+        typeof selectedDesk.availability === "string"
+          ? JSON.parse(selectedDesk.availability)
+          : (selectedDesk.availability as unknown as Availability);
+
+      const dateObj = new Date(selectedDate);
+      const weekdayName = weekdayNames[dateObj.getDay()];
+
+      const unformattedTimeslot = selectedTimeslot.replace(/:/g, "");
+      const updatedDailyAvailability = (currentAvailability[weekdayName] || []).filter(
+        (slot) => slot !== unformattedTimeslot
+      );
+
+      const updatedAvailability = {
+        ...currentAvailability,
+        [weekdayName]: updatedDailyAvailability,
+      };
+
+      // Update the resource in Supabase
+      const { error: updateError } = await supabase
+        .from("resources")
+        .update({ availability: JSON.stringify(updatedAvailability) })
+        .eq("id", selectedDesk.id);
+
+      if (updateError) {
+        throw updateError;
+      }
+    } catch (error: any) {
+      alert("Failed to update resource availability: " + error.message);
+      return; 
+    }
+
     const { error } = await supabase.from("reservations").insert([
       {
         resourceId: selectedDesk.id,
@@ -169,7 +207,19 @@ const ReservationFlow = ({ resources }: ReservationFlowProps) => {
     ]);
 
     if (error) {
-      alert("Failed to create reservation: " + error.message);
+      alert("Failed to create reservation: " + error.message + ". Reverting availability change.");
+      // Revert the availability change
+      const { error: revertError } = await supabase
+        .from("resources")
+        .update({ availability: originalAvailability })
+        .eq("id", selectedDesk.id);
+
+      if (revertError) {
+        alert(
+          "CRITICAL: Failed to revert availability change. Please check resource availability manually. Error: " +
+            revertError.message
+        );
+      } 
     } else {
       alert("Reservation created successfully!");
       // Optionally, reset the selection
