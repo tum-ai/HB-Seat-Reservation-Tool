@@ -3,13 +3,14 @@ import ReservationFlow from "../components/ReservationFlow";
 import { supabase, getUserData, getResources } from "../lib/supabase";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import type { User, Resource } from "../types/type";
 
 const Home = () => {
   const navigate = useNavigate();
 
   const [userId, setUserId] = useState<string | null>(null);
-  const [userData, setUserData] = useState<any>(null);
-  const [resources, setResources] = useState<any[]>([]);
+  const [userData, setUserData] = useState<User | null>(null);
+  const [resources, setResources] = useState<Resource[]>([]);
 
   useEffect(() => {
     const fetchUserId = async () => {

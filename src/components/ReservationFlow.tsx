@@ -66,9 +66,11 @@ const ReservationFlow = ({ resources }: ReservationFlowProps) => {
 
     try {
       await updateResourceAvailability(selectedDesk, selectedDate, selectedTimeslot);
-    } catch (error: any) {
+    } catch (error: unknown) {
+        if (error instanceof Error) {
       alert(`Failed to update resource availability: ${error.message}`);
       return;
+        }
     }
 
     try {
@@ -79,9 +81,12 @@ const ReservationFlow = ({ resources }: ReservationFlowProps) => {
       setSelectedRoom(null);
       setSelectedDesk(null);
       setSelectedTimeslot(null);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+
       alert(`Failed to create reservation: ${error.message}. Reverting availability change.`);
       await revertAvailability(selectedDesk.id, originalAvailability);
+      }
     }
   };
 
