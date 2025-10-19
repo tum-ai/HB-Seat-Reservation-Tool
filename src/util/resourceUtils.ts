@@ -7,10 +7,11 @@ export const getDesksForRoom = (room: Resource, resources: Resource[]): Resource
   if (!room.subResources || room.subResources.length === 0) {
     return [];
   }
-  return resources.filter(
+  const desks = resources.filter(
     (resource) =>
       resource.type === "Desk" && room.subResources.includes(resource.id)
   );
+  return desks.sort((a, b) => a.name.localeCompare(b.name));
 };
 
 // Get availability timeslots for a desk on a specific date

@@ -85,6 +85,10 @@ const ReservationFlow = ({ resources }: ReservationFlowProps) => {
     }
   };
 
+  const availableDesks = selectedRoom && selectedDate
+    ? getDesksForRoom(selectedRoom, resources).filter(desk => getAvailableTimeslots(desk, selectedDate).length > 0)
+    : [];
+
   const availableTimeslots = selectedDesk && selectedDate ? getAvailableTimeslots(selectedDesk, selectedDate) : [];
 
   return (
@@ -131,7 +135,7 @@ const ReservationFlow = ({ resources }: ReservationFlowProps) => {
           <div className="space-y-2">
             <h3 className="text-lg font-semibold mb-2">Select Desk</h3>
             <div className="space-y-2 max-h-96 overflow-y-auto">
-              {getDesksForRoom(selectedRoom, resources).map((desk) => (
+              {availableDesks.map((desk) => (
                 <ListEntry
                   key={desk.id}
                   text={desk.name}
