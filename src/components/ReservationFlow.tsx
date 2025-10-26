@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
-import type { Resource } from "../types/type";
+import type { Reservation, Resource } from "../types/type";
 import { formatDate, generateDates, getISODate } from "../util/dateUtils";
 import {
   createReservation,
-  revertAvailability,
-  updateResourceAvailability,
+  getFutureReservationsForDesk,
 } from "../util/reservationUtils";
 import { getAvailableTimeslots, getDesksForRoom } from "../util/resourceUtils";
 import ListEntry from "./ListEntry";
@@ -18,88 +17,95 @@ const ReservationFlow = ({ resources }: ReservationFlowProps) => {
   const { user } = useAuth();
   // State management for selections
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedTimeslots, setSelectedTimeslots] = useState<string[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<Resource | null>(null);
   const [selectedDesk, setSelectedDesk] = useState<Resource | null>(null);
-  const [selectedTimeslot, setSelectedTimeslot] = useState<string | null>(null);
+  const [allReservations, setAllReservations] = useState<Reservation[]>([]);
 
   const dates = generateDates();
 
   // Filter rooms (resources with type "Room")
   const rooms = resources.filter((resource) => resource.type === "Room");
 
-  // Reset subsequent selections when a parent selection changes
+  // Fetch all reservations when date is selected to filter available resources
   useEffect(() => {
-    setSelectedRoom(null);
-    setSelectedDesk(null);
-    setSelectedTimeslot(null);
-  }, []);
+    const fetchAllReservations = async () => {
+      if (selectedDate) {
+        try {
+          // Fetch reservations for all desks for the selected date
+          const allDesks = resources.filter((r) => r.type === "Desk");
+          const reservationPromises = allDesks.map((desk) =>
+            getFutureReservationsForDesk(desk.id)
+          );
+          const allReservationsData = await Promise.all(reservationPromises);
+          const flattenedReservations = allReservationsData.flat();
+          setAllReservations(flattenedReservations);
+        } catch (error) {
+          console.error("Error fetching reservations:", error);
+          setAllReservations([]);
+        }
+      } else {
+        setAllReservations([]);
+      }
+    };
 
-  useEffect(() => {
-    setSelectedDesk(null);
-    setSelectedTimeslot(null);
-  }, []);
-
-  useEffect(() => {
-    setSelectedTimeslot(null);
-  }, []);
+    fetchAllReservations();
+  }, [selectedDate, resources]);
 
   const handleDateClick = (date: Date) => {
     if (selectedDate && selectedDate == getISODate(date)) {
       setSelectedDate(null);
+      setSelectedTimeslots([]);
       setSelectedRoom(null);
       setSelectedDesk(null);
-      setSelectedTimeslot(null);
       return;
     }
     setSelectedDate(getISODate(date));
+    setSelectedTimeslots([]);
+    setSelectedRoom(null);
+    setSelectedDesk(null);
+  };
+
+  const handleTimeslotClick = (timeslot: string) => {
+    if (selectedTimeslots.includes(timeslot)) {
+      // Remove the timeslot if already selected
+      const newTimeslots = selectedTimeslots.filter((t) => t !== timeslot);
+      setSelectedTimeslots(newTimeslots);
+      // Reset room and desk when timeslots change
+      setSelectedRoom(null);
+      setSelectedDesk(null);
+    } else {
+      // Add the timeslot to the selection
+      const newTimeslots = [...selectedTimeslots, timeslot].sort();
+      setSelectedTimeslots(newTimeslots);
+      // Reset room and desk when timeslots change
+      setSelectedRoom(null);
+      setSelectedDesk(null);
+    }
   };
 
   const handleRoomClick = (room: Resource) => {
     if (selectedRoom && selectedRoom == room) {
       setSelectedRoom(null);
       setSelectedDesk(null);
-      setSelectedTimeslot(null);
       return;
     }
     setSelectedRoom(room);
+    setSelectedDesk(null);
   };
 
   const handleDeskClick = (desk: Resource) => {
     if (selectedDesk && selectedDesk == desk) {
-      setSelectedTimeslot(null);
       setSelectedDesk(null);
       return;
     }
     setSelectedDesk(desk);
   };
 
-  const handleTimeslotClick = (timeslot: string) => {
-    if (selectedTimeslot && selectedTimeslot == timeslot) {
-      setSelectedTimeslot(null);
-      return;
-    }
-    setSelectedTimeslot(timeslot);
-  };
-
   const handleConfirmReservation = async () => {
-    if (!selectedDate || !selectedDesk || !selectedTimeslot || !user) {
-      alert("Please make sure you have selected a date, desk, and timeslot.");
+    if (!selectedDate || !selectedDesk || selectedTimeslots.length === 0 || !user) {
+      alert("Please make sure you have selected a date, timeslots, and a desk.");
       return;
-    }
-
-    const originalAvailability = selectedDesk.availability;
-
-    try {
-      await updateResourceAvailability(
-        selectedDesk,
-        selectedDate,
-        selectedTimeslot
-      );
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        alert(`Failed to update resource availability: ${error.message}`);
-        return;
-      }
     }
 
     try {
@@ -107,35 +113,122 @@ const ReservationFlow = ({ resources }: ReservationFlowProps) => {
         selectedDesk.id,
         user.id,
         selectedDate,
-        selectedTimeslot
+        selectedTimeslots
       );
       alert("Reservation created successfully!");
       // Reset selections
       setSelectedDate(null);
+      setSelectedTimeslots([]);
       setSelectedRoom(null);
       setSelectedDesk(null);
-      setSelectedTimeslot(null);
     } catch (error: unknown) {
       if (error instanceof Error) {
         alert(
-          `Failed to create reservation: ${error.message}. Reverting availability change.`
+          `Failed to create reservation: ${error.message}.`
         );
-        await revertAvailability(selectedDesk.id, originalAvailability);
       }
     }
   };
 
-  const availableDesks =
-    selectedRoom && selectedDate
-      ? getDesksForRoom(selectedRoom, resources).filter(
-          (desk) => getAvailableTimeslots(desk, selectedDate).length > 0
-        )
-      : [];
+  // Helper function to check if a desk has all selected timeslots available
+  const isDeskAvailableForTimeslots = (desk: Resource): boolean => {
+    if (!selectedDate || selectedTimeslots.length === 0) return false;
 
-  const availableTimeslots =
-    selectedDesk && selectedDate
-      ? getAvailableTimeslots(selectedDesk, selectedDate)
-      : [];
+    const deskTimeslots = getAvailableTimeslots(desk, selectedDate);
+    
+    // Get reserved timeslots for this desk
+    const reservedTimeslots = getReservedTimeslotsForDesk(desk.id);
+
+    // Check if all selected timeslots are available and not reserved
+    return selectedTimeslots.every(
+      (timeslot) =>
+        deskTimeslots.includes(timeslot) && !reservedTimeslots.includes(timeslot)
+    );
+  };
+
+  // Helper function to get reserved timeslots for a specific desk
+  const getReservedTimeslotsForDesk = (deskId: string): string[] => {
+    if (!selectedDate) return [];
+
+    return allReservations
+      .filter((reservation) => {
+        const reservationDate = new Date(reservation.date).toISOString().split('T')[0];
+        return (
+          reservation.resourceId === deskId &&
+          reservationDate === selectedDate &&
+          reservation.status === "Reserved"
+        );
+      })
+      .flatMap((reservation) => {
+        const timeslots = typeof reservation.timeslots === 'string'
+          ? JSON.parse(reservation.timeslots)
+          : reservation.timeslots;
+        return Array.isArray(timeslots) ? timeslots : [];
+      });
+  };
+
+  // Helper function to check if desk has any timeslot overlap with selected timeslots
+  const isDeskReservedForSelectedTimeslots = (desk: Resource): boolean => {
+    if (!selectedDate || selectedTimeslots.length === 0) return false;
+
+    const reservedTimeslots = getReservedTimeslotsForDesk(desk.id);
+    
+    // Check if any selected timeslot is already reserved
+    return selectedTimeslots.some((timeslot) => reservedTimeslots.includes(timeslot));
+  };
+
+  // Get all unique timeslots available across all desks for the selected date
+  const allAvailableTimeslots = selectedDate
+    ? Array.from(
+        new Set(
+          resources
+            .filter((r) => r.type === "Desk")
+            .flatMap((desk) => getAvailableTimeslots(desk, selectedDate))
+        )
+      ).sort()
+    : [];
+
+  // Get all desks for a room (both available and reserved)
+  const getAllDesksForRoom = (room: Resource): Resource[] => {
+    return getDesksForRoom(room, resources);
+  };
+
+  // Calculate room capacity: reserved desks / total desks
+  const getRoomCapacity = (room: Resource): { reserved: number; total: number } => {
+    const desks = getAllDesksForRoom(room);
+    const total = desks.length;
+    
+    if (selectedTimeslots.length === 0) {
+      return { reserved: 0, total };
+    }
+
+    const reserved = desks.filter((desk) => isDeskReservedForSelectedTimeslots(desk)).length;
+    
+    return { reserved, total };
+  };
+
+  // Filter rooms that have at least one desk with the selected timeslots in its availability
+  // (regardless of whether it's already reserved)
+  const availableRooms = selectedTimeslots.length > 0 && selectedDate
+    ? rooms.filter((room) => {
+        const desks = getAllDesksForRoom(room);
+        return desks.some((desk) => {
+          const deskTimeslots = getAvailableTimeslots(desk, selectedDate);
+          // Check if desk has all selected timeslots in its availability
+          return selectedTimeslots.every((timeslot) => deskTimeslots.includes(timeslot));
+        });
+      })
+    : [];
+
+  // Get all desks in selected room that have the selected timeslots in their availability
+  // (including both available and reserved)
+  const allDesksInRoom = selectedRoom && selectedTimeslots.length > 0 && selectedDate
+    ? getAllDesksForRoom(selectedRoom).filter((desk) => {
+        const deskTimeslots = getAvailableTimeslots(desk, selectedDate);
+        // Check if desk has all selected timeslots in its availability
+        return selectedTimeslots.every((timeslot) => deskTimeslots.includes(timeslot));
+      })
+    : [];
 
   return (
     <div className="mt-8">
@@ -157,59 +250,87 @@ const ReservationFlow = ({ resources }: ReservationFlowProps) => {
           </div>
         </div>
 
-        {/* Column 2: Rooms */}
+        {/* Column 2: Timeslots */}
         {selectedDate && (
           <div className="space-y-2">
-            <h3 className="text-lg font-semibold mb-2">Select Room</h3>
+            <h3 className="text-lg font-semibold mb-2">Select Time(s)</h3>
+            <p className="text-sm text-gray-600 mb-2">
+              Select one or more timeslots
+            </p>
             <div className="space-y-2 max-h-96 overflow-y-auto">
-              {rooms.map((room) => (
-                <ListEntry
-                  key={room.id}
-                  text={room.name}
-                  capacity={room.capacity}
-                  capacityLimit={room.capacityLimit}
-                  isSelected={selectedRoom?.id === room.id}
-                  onClick={() => handleRoomClick(room)}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Column 3: Desks */}
-        {selectedRoom && (
-          <div className="space-y-2">
-            <h3 className="text-lg font-semibold mb-2">Select Desk</h3>
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {availableDesks.map((desk) => (
-                <ListEntry
-                  key={desk.id}
-                  text={desk.name}
-                  capacity={desk.capacity}
-                  capacityLimit={desk.capacityLimit}
-                  isSelected={selectedDesk?.id === desk.id}
-                  onClick={() => handleDeskClick(desk)}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Column 4: Timeslots */}
-        {selectedDesk && selectedDate && (
-          <div className="space-y-2">
-            <h3 className="text-lg font-semibold mb-2">Select Time</h3>
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {availableTimeslots.map((timeslot) => (
+              {allAvailableTimeslots.map((timeslot) => (
                 <ListEntry
                   key={timeslot}
                   text={timeslot}
-                  isSelected={selectedTimeslot === timeslot}
+                  isSelected={selectedTimeslots.includes(timeslot)}
                   onClick={() => handleTimeslotClick(timeslot)}
                 />
               ))}
-              {availableTimeslots.length === 0 && (
+              {allAvailableTimeslots.length === 0 && (
                 <p className="text-gray-500 text-sm">No timeslots available</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Column 3: Rooms */}
+        {selectedTimeslots.length > 0 && (
+          <div className="space-y-2">
+            <h3 className="text-lg font-semibold mb-2">Select Room</h3>
+            <p className="text-sm text-gray-600 mb-2">
+              Reserved/Total desks shown
+            </p>
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {availableRooms.map((room) => {
+                const { reserved, total } = getRoomCapacity(room);
+                return (
+                  <ListEntry
+                    key={room.id}
+                    text={room.name}
+                    capacity={reserved}
+                    capacityLimit={total}
+                    isSelected={selectedRoom?.id === room.id}
+                    onClick={() => handleRoomClick(room)}
+                  />
+                );
+              })}
+              {availableRooms.length === 0 && (
+                <p className="text-gray-500 text-sm">
+                  No rooms available for selected timeslots
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Column 4: Desks */}
+        {selectedRoom && (
+          <div className="space-y-2">
+            <h3 className="text-lg font-semibold mb-2">Select Desk</h3>
+            <p className="text-sm text-gray-600 mb-2">
+              Red = Reserved, Green = Available
+            </p>
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {allDesksInRoom.map((desk) => {
+                const isReserved = isDeskReservedForSelectedTimeslots(desk);
+                const isAvailable = isDeskAvailableForTimeslots(desk);
+                return (
+                  <ListEntry
+                    key={desk.id}
+                    text={desk.name}
+                    capacity={isReserved ? 1 : 0}
+                    capacityLimit={1}
+                    isSelected={selectedDesk?.id === desk.id}
+                    onClick={() => handleDeskClick(desk)}
+                    isReserved={isReserved}
+                    disabled={!isAvailable}
+                  />
+                );
+              })}
+              {allDesksInRoom.length === 0 && (
+                <p className="text-gray-500 text-sm">
+                  No desks available for selected timeslots
+                </p>
               )}
             </div>
           </div>
@@ -217,7 +338,7 @@ const ReservationFlow = ({ resources }: ReservationFlowProps) => {
       </div>
 
       {/* Confirmation Section */}
-      {selectedTimeslot && (
+      {selectedDesk && selectedTimeslots.length > 0 && (
         <div className="mt-6 p-4 bg-blue-50 rounded-lg">
           <h3 className="text-lg font-semibold mb-2">Reservation Summary</h3>
           <div className="space-y-1">
@@ -231,13 +352,13 @@ const ReservationFlow = ({ resources }: ReservationFlowProps) => {
               })()}
             </p>
             <p>
+              <strong>Time:</strong> {selectedTimeslots.join(", ")}
+            </p>
+            <p>
               <strong>Room:</strong> {selectedRoom?.name}
             </p>
             <p>
               <strong>Desk:</strong> {selectedDesk?.name}
-            </p>
-            <p>
-              <strong>Time:</strong> {selectedTimeslot}
             </p>
           </div>
           <button

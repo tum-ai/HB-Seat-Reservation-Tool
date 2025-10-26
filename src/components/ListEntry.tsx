@@ -4,6 +4,8 @@ interface ListEntryProps {
 	capacityLimit?: number;
 	isSelected?: boolean;
 	onClick?: () => void;
+	isReserved?: boolean;
+	disabled?: boolean;
 }
 
 const ListEntry = ({
@@ -12,11 +14,18 @@ const ListEntry = ({
 	capacityLimit,
 	isSelected = false,
 	onClick,
+	isReserved = false,
+	disabled = false,
 }: ListEntryProps) => {
 	// Determine background color based on capacity
 	const getBackgroundColor = () => {
 		if (isSelected) {
 			return "bg-blue-500 text-white";
+		}
+
+		// If desk is reserved (disabled), show in red
+		if (isReserved && disabled) {
+			return "bg-red-200 cursor-not-allowed opacity-75";
 		}
 
 		if (capacity !== undefined && capacityLimit !== undefined) {
@@ -34,15 +43,22 @@ const ListEntry = ({
 		return "bg-gray-100 hover:bg-gray-200"; // Default
 	};
 
+	const handleClick = () => {
+		if (!disabled && onClick) {
+			onClick();
+		}
+	};
+
 	return (
 		<button
 			type="button"
-			onClick={onClick}
+			onClick={handleClick}
+			disabled={disabled}
 			className={`
         w-full px-4 py-3 rounded-lg transition-all duration-200
         text-left font-medium
         ${getBackgroundColor()}
-        ${onClick ? "cursor-pointer" : "cursor-default"}
+        ${!disabled && onClick ? "cursor-pointer" : "cursor-not-allowed"}
       `}
 		>
 			<div className="flex justify-between items-center">

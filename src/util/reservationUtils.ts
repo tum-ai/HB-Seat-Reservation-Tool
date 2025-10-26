@@ -40,27 +40,27 @@ export const createReservation = async (
   deskId: string,
   userId: string,
   date: string,
-  timeslot: string
+  timeslots: string[]
 ) => {
   const { error } = await supabase.from("reservations").insert([
     {
       resourceId: deskId,
       userId: userId,
       date: new Date(date).toISOString(),
-      timeslots: [timeslot],
+      timeslots: timeslots,
     },
   ]);
   if (error) {
     throw new Error(error.message);
   }
 
-  updateUserReservations(userId, date, timeslot);
+  updateUserReservations(userId, date, timeslots);
 };
 
 const updateUserReservations = async (
   userId: string,
   date: string,
-  timeslot: string
+  timeslots: string[]
 ) => {
   /* get user's current reservations */
   const { data: userData, error: fetchError } = await supabase
@@ -76,11 +76,14 @@ const updateUserReservations = async (
   const existingReservations: string[] =
     (userData?.reservations as string[]) ?? [];
 
+  // Create reservation entries for each timeslot
+  const newReservations = timeslots.map(timeslot => `${date} ${timeslot}`);
+
   const { error: upsertError } = await supabase
     .from("users")
     .upsert({
       id: userId,
-      reservations: [...existingReservations, date + " " + timeslot],
+      reservations: [...existingReservations, ...newReservations],
     })
     .select();
 
@@ -103,4 +106,22 @@ export const revertAvailability = async (
       `CRITICAL: Failed to revert availability change for resource ${deskId}. Please check resource availability manually. Error: ${error.message}`
     );
   }
+};
+
+export const getFutureReservationsForDesk = async (deskId: string) => {
+  // Get today's date at midnight to include today's reservations
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const { data, error } = await supabase
+    .from("reservations")
+    .select()
+    .eq("resourceId", deskId)
+    .gte("date", today.toISOString());
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
 };
