@@ -1,6 +1,6 @@
 // src/util/reservationUtils.ts
 import { supabase } from "../lib/supabase";
-import type { Availability, Resource } from "../types/type";
+import type { Availability, Resource, Reservation } from "../types/type";
 import { unformatTimeslot, weekdayNames } from "./dateUtils";
 
 export const updateResourceAvailability = async (
@@ -42,25 +42,25 @@ export const createReservation = async (
   date: string,
   timeslots: string[]
 ) => {
-  const { error } = await supabase.from("reservations").insert([
+  const { data, error } = await supabase.from("reservations").insert([
     {
       resourceId: deskId,
       userId: userId,
       date: new Date(date).toISOString(),
       timeslots: timeslots,
     },
-  ]);
+  ]).select();
   if (error) {
     throw new Error(error.message);
   }
 
-  updateUserReservations(userId, date, timeslots);
+  updateUserReservations(userId, date, data![0].id);
 };
 
 const updateUserReservations = async (
   userId: string,
   date: string,
-  timeslots: string[]
+  reservationId: string
 ) => {
   /* get user's current reservations */
   const { data: userData, error: fetchError } = await supabase
@@ -77,7 +77,7 @@ const updateUserReservations = async (
     (userData?.reservations as string[]) ?? [];
 
   // Create reservation entries for each timeslot
-  const newReservations = timeslots.map(timeslot => `${date} ${timeslot}`);
+  const newReservations = [reservationId];
 
   const { error: upsertError } = await supabase
     .from("users")

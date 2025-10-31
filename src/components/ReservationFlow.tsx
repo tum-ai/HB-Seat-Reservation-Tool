@@ -11,9 +11,10 @@ import ListEntry from "./ListEntry";
 
 interface ReservationFlowProps {
   resources: Resource[];
+  onReservationCreated?: () => void;
 }
 
-const ReservationFlow = ({ resources }: ReservationFlowProps) => {
+const ReservationFlow = ({ resources, onReservationCreated }: ReservationFlowProps) => {
   const { user } = useAuth();
   // State management for selections
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -116,11 +117,27 @@ const ReservationFlow = ({ resources }: ReservationFlowProps) => {
         selectedTimeslots
       );
       alert("Reservation created successfully!");
+      
+      // Refetch reservations to update availability
+      if (selectedDate) {
+        const allDesks = resources.filter((r) => r.type === "Desk");
+        const reservationPromises = allDesks.map((desk) =>
+          getFutureReservationsForDesk(desk.id)
+        );
+        const allReservationsData = await Promise.all(reservationPromises);
+        const flattenedReservations = allReservationsData.flat();
+        setAllReservations(flattenedReservations);
+      }
+      
       // Reset selections
       setSelectedDate(null);
       setSelectedTimeslots([]);
       setSelectedRoom(null);
       setSelectedDesk(null);
+      // Notify parent component to refetch resources
+      if (onReservationCreated) {
+        onReservationCreated();
+      }
     } catch (error: unknown) {
       if (error instanceof Error) {
         alert(

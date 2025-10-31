@@ -65,3 +65,22 @@ export const formatTimeslot = (slot: string): string => {
 export const unformatTimeslot = (slot: string): string => {
 	return slot.replace(/:/g, "");
 };
+
+// Helper function to get time range from array of timeslots
+// e.g., ["0800-0830", "0830-0900", "0900-0930"] => "08:00 - 09:30"
+export const getTimeRange = (timeslots: string[]): string => {
+	if (!timeslots || timeslots.length === 0) return "";
+	
+	// Sort timeslots to ensure they're in order
+	const sortedSlots = [...timeslots].sort();
+	
+	// Get start time from first slot
+	const firstSlot = sortedSlots[0];
+	const startTime = formatTime(firstSlot.split("-")[0]);
+	
+	// Get end time from last slot
+	const lastSlot = sortedSlots[sortedSlots.length - 1];
+	const endTime = formatTime(lastSlot.split("-")[1]);
+	
+	return `${startTime} - ${endTime}`;
+};

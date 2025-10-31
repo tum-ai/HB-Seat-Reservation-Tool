@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ReservationFlow from "../components/ReservationFlow";
 import Timer from "../components/Timer";
+import UpcomingReservations from "../components/UpcomingReservations";
 import { getResources, getUserData, supabase } from "../lib/supabase";
 import type { Resource, User } from "../types/type";
 
@@ -11,6 +12,7 @@ const Home = () => {
 	const [userId, setUserId] = useState<string | null>(null);
 	const [userData, setUserData] = useState<User | null>(null);
 	const [resources, setResources] = useState<Resource[]>([]);
+	const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
 
 	useEffect(() => {
 		const fetchUserId = async () => {
@@ -51,8 +53,18 @@ const Home = () => {
 		navigate("/login");
 	};
 
+	const handleReservationUpdate = async () => {
+		// Refetch resources when a reservation is cancelled or created
+		console.log("Refetching resources...");
+		const data = await getResources();
+		setResources(data);
+		console.log("Resources refetched:", data);
+		// Trigger refresh of UpcomingReservations component
+		setRefreshTrigger(prev => prev + 1);
+	};
+
 	return (
-		<div className="w-full p-20">
+		<div className="w-full p-8 md:p-16">
 			<div className="flex justify-between items-center">
 				<Timer />
 				<button
@@ -65,7 +77,16 @@ const Home = () => {
 			</div>
 			<h1 className="mt-4 text-5xl font-bold">Welcome {username}</h1>
 			<div>
-				<ReservationFlow resources={resources} />
+
+				<UpcomingReservations
+					userId={userId}
+					onReservationCancelled={handleReservationUpdate}
+					refreshTrigger={refreshTrigger}
+				/>
+				<ReservationFlow
+					resources={resources}
+					onReservationCreated={handleReservationUpdate}
+				/>
 			</div>
 		</div>
 	);

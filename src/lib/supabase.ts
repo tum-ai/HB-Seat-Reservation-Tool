@@ -26,3 +26,11 @@ export async function getResources() {
 	}
 	return data;
 }
+
+export async function getReservations() {
+	const { data, error } = await supabase.from("reservations").select();
+	if (error || !data) {
+		return [];
+	}
+	return data;
+}
