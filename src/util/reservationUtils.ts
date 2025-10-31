@@ -1,6 +1,6 @@
 // src/util/reservationUtils.ts
 import { supabase } from "../lib/supabase";
-import type { Availability, Resource, Reservation } from "../types/type";
+import type { Availability, Resource } from "../types/type";
 import { unformatTimeslot, weekdayNames } from "./dateUtils";
 
 export const updateResourceAvailability = async (
@@ -59,7 +59,7 @@ export const createReservation = async (
 
 const updateUserReservations = async (
   userId: string,
-  date: string,
+  _date: string,
   reservationId: string
 ) => {
   /* get user's current reservations */
@@ -125,3 +125,76 @@ export const getFutureReservationsForDesk = async (deskId: string) => {
 
   return data;
 };
+
+export const fetchUserReservations = async (userId: string) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Fetch reservations for the user
+  const { data: reservations, error: reservationsError } = await supabase
+    .from("reservations")
+    .select("*")
+    .eq("userId", userId)
+    .neq("status", "Cancelled")
+    .gte("date", today.toISOString())
+    .order("date", { ascending: true });
+
+  if (reservationsError) {
+    throw new Error(reservationsError.message);
+  }
+
+  return reservations || [];
+};
+
+export const checkInReservation = async (reservationId: string) => {
+  const { error } = await supabase
+    .from("reservations")
+    .update({ status: "Completed" })
+    .eq("id", reservationId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+};
+
+export const cancelReservation = async (reservationId: string, userId: string) => {
+  // Delete the reservation
+  const { error: reservationDeleteError } = await supabase
+    .from("reservations")
+    .delete()
+    .eq("id", reservationId)
+    .select();
+
+  if (reservationDeleteError) {
+    throw new Error(reservationDeleteError.message);
+  }
+
+  // Fetch user's current reservations
+  const { data: affectedUser, error: fetchUserError } = await supabase
+    .from("users")
+    .select("reservations")
+    .eq("id", userId)
+    .single();
+
+  if (fetchUserError) {
+    throw new Error(fetchUserError.message);
+  }
+
+  const currentReservations: string[] = affectedUser?.reservations || [];
+  const updatedReservations = currentReservations.filter(
+    (id) => id !== reservationId
+  );
+
+  // Update user's reservations array
+  const { error: userUpdateError } = await supabase
+    .from("users")
+    .update({
+      reservations: updatedReservations,
+    })
+    .eq("id", userId);
+
+  if (userUpdateError) {
+    throw new Error(userUpdateError.message);
+  }
+};
+

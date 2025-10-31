@@ -1,4 +1,5 @@
 // src/util/resourceUtils.ts
+import { supabase } from "../lib/supabase";
 import type { Availability, Resource } from "../types/type";
 import { formatTimeslot, weekdayNames } from "./dateUtils";
 
@@ -54,4 +55,18 @@ export const getAvailableTimeslots = (
 		console.error("Error parsing availability:", error);
 		return [];
 	}
+};
+
+// Fetch resources by their IDs
+export const fetchResourcesByIds = async (resourceIds: string[]): Promise<Resource[]> => {
+	const { data: resources, error } = await supabase
+		.from("resources")
+		.select("*")
+		.in("id", resourceIds);
+
+	if (error) {
+		throw new Error(error.message);
+	}
+
+	return resources || [];
 };
