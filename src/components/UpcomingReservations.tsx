@@ -122,6 +122,129 @@ const UpcomingReservations = ({
     setExpandedDays(newExpanded);
   };
 
+  // Check if current date and time is within a reservation's timeframe
+  const isWithinReservationTime = (reservation: Reservation): boolean => {
+    const now = new Date();
+    const reservationDate = new Date(reservation.date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    reservationDate.setHours(0, 0, 0, 0);
+    
+    // Check if reservation is today
+    if (reservationDate.getTime() !== today.getTime()) {
+      return false;
+    }
+
+    // Parse timeslots
+    const timeslots = Array.isArray(reservation.timeslots)
+      ? reservation.timeslots
+      : [];
+    
+    if (timeslots.length === 0) return false;
+
+    // Get current time in HHMM format
+    const currentHour = now.getHours().toString().padStart(2, '0');
+    const currentMinute = now.getMinutes().toString().padStart(2, '0');
+    const currentTime = parseInt(`${currentHour}${currentMinute}`);
+
+    // Check if current time falls within any timeslot
+    for (const slot of timeslots) {
+      const [start, end] = slot.split('-');
+      const startTime = parseInt(start.replace(':', ''));
+      const endTime = parseInt(end.replace(':', ''));
+
+      if (currentTime >= startTime && currentTime <= endTime) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
+  // Calculate distance between two coordinates using Haversine formula
+  const calculateDistance = (
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number
+  ): number => {
+    const R = 6371; // Earth's radius in kilometers
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  const handleCheckIn = async (reservationId: string) => {
+    // Target location coordinates (replace with actual building coordinates)
+    const targetLat = import.meta.env.VITE_TARGET_LATITUDE;
+    const targetLon = import.meta.env.VITE_TARGET_LONGITUDE;
+    const maxDistance = import.meta.env.VITE_PROXIMITY_THRESHOLD_METERS / 1000;
+
+    try {
+      // Request user's location
+      if (!navigator.geolocation) {
+        alert("Geolocation is not supported by your browser.");
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const userLat = position.coords.latitude;
+          const userLon = position.coords.longitude;
+          console.log("User coordinates:", userLat, userLon);
+
+          // Calculate distance
+          const distance = calculateDistance(userLat, userLon, targetLat, targetLon);
+
+          if (distance > maxDistance) {
+            alert(
+              `You are too far from the location. You are ${distance.toFixed(2)} km away. Please be within 1 km to check in.`
+            );
+            return;
+          }
+
+          // Update reservation status to "Completed"
+          const { error } = await supabase
+            .from("reservations")
+            .update({ status: "Completed" })
+            .eq("id", reservationId);
+
+          if (error) {
+            console.error("Error checking in:", error);
+            alert("Failed to check in. Please try again.");
+            return;
+          }
+
+          alert("Successfully checked in!");
+          
+          // Refresh the reservations list
+          await fetchUpcomingReservations();
+        },
+        (error) => {
+          console.error("Error getting location:", error);
+          alert(
+            "Failed to get your location. Please enable location services and try again."
+          );
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0,
+        }
+      );
+    } catch (error) {
+      console.error("Error in handleCheckIn:", error);
+      alert("An error occurred during check-in.");
+    }
+  };
+
   const handleCancelReservation = async (reservationId: string) => {
     if (!window.confirm("Are you sure you want to cancel this reservation?")) {
       return;
@@ -252,6 +375,7 @@ const UpcomingReservations = ({
                     ? reservation.timeslots
                     : [];
                   const timeRange = getTimeRange(timeslots);
+                  const canCheckIn = isWithinReservationTime(reservation) && reservation.status === "Reserved";
 
                   return (
                     <div
@@ -263,6 +387,11 @@ const UpcomingReservations = ({
                           <h3 className="font-semibold text-base truncate">
                             {reservation.resource?.name || "Unknown Resource"}
                           </h3>
+                          {reservation.status === "Completed" && (
+                            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full font-medium">
+                              Checked-in
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <svg
@@ -281,13 +410,26 @@ const UpcomingReservations = ({
                           <span className="font-medium">{timeRange}</span>
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleCancelReservation(reservation.id)}
-                        className="px-3 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm font-medium whitespace-nowrap self-start sm:self-center"
-                      >
-                        Cancel
-                      </button>
+                      <div className="flex gap-2 self-start sm:self-center">
+                        {canCheckIn && (
+                          <button
+                            type="button"
+                            onClick={() => handleCheckIn(reservation.id)}
+                            className="px-3 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm font-medium whitespace-nowrap"
+                          >
+                            Check-in
+                          </button>
+                        )}
+                        {reservation.status !== "Completed" && (
+                          <button
+                            type="button"
+                            onClick={() => handleCancelReservation(reservation.id)}
+                            className="px-3 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm font-medium whitespace-nowrap"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
