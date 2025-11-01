@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ReservationFlow from "../components/ReservationFlow";
+import ReservationRulesModal from "../components/ReservationRulesModal";
 import Timer from "../components/Timer";
 import UpcomingReservations from "../components/UpcomingReservations";
 import { getResources, getUserData, supabase } from "../lib/supabase";
@@ -13,6 +14,7 @@ const Home = () => {
   const [userData, setUserData] = useState<User | null>(null);
   const [resources, setResources] = useState<Resource[]>([]);
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
+  const [showRulesModal, setShowRulesModal] = useState<boolean>(true);
 
   useEffect(() => {
     const fetchUserId = async () => {
@@ -61,6 +63,10 @@ const Home = () => {
 
   return (
     <div className="w-full p-8 md:p-16">
+      <ReservationRulesModal
+        isOpen={showRulesModal}
+        onClose={() => setShowRulesModal(false)}
+      />
       <div className="flex justify-between items-center">
         <Timer />
         <button
