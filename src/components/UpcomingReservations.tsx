@@ -11,6 +11,7 @@ import ReservationCard from "./ReservationCard";
 
 interface UpcomingReservationsProps {
   userId: string | null;
+  refreshTrigger?: number;
   onReservationCancelled?: () => void;
 }
 
@@ -22,6 +23,7 @@ interface GroupedReservation {
 
 const UpcomingReservations = ({
   userId,
+  refreshTrigger,
   onReservationCancelled,
 }: UpcomingReservationsProps) => {
   const [groupedReservations, setGroupedReservations] = useState<
@@ -74,7 +76,7 @@ const UpcomingReservations = ({
 
       // Convert to array and sort by date
       const sortedGroups = Object.values(grouped).sort(
-        (a, b) => a.dateObject.getTime() - b.dateObject.getTime(),
+        (a, b) => a.dateObject.getTime() - b.dateObject.getTime()
       );
 
       setGroupedReservations(sortedGroups);
@@ -89,7 +91,7 @@ const UpcomingReservations = ({
     if (userId) {
       fetchUpcomingReservations();
     }
-  }, [userId, fetchUpcomingReservations]);
+  }, [userId, fetchUpcomingReservations, refreshTrigger]);
 
   const toggleDay = (date: string) => {
     const newExpanded = new Set(expandedDays);
@@ -102,7 +104,7 @@ const UpcomingReservations = ({
   };
 
   const getReservationStatus = (
-    reservation: Reservation,
+    reservation: Reservation
   ): "expired" | "active" | "upcoming" => {
     const now = new Date();
     const reservationDate = new Date(reservation.date);
@@ -135,7 +137,7 @@ const UpcomingReservations = ({
     reservationStartTime.setHours(startHour, startMinute, 0, 0);
 
     const checkinWindowEnd = new Date(
-      reservationStartTime.getTime() + 15 * 60 * 1000,
+      reservationStartTime.getTime() + 15 * 60 * 1000
     );
 
     if (now >= reservationStartTime && now <= checkinWindowEnd) {
@@ -156,7 +158,7 @@ const UpcomingReservations = ({
     lat1: number,
     lon1: number,
     lat2: number,
-    lon2: number,
+    lon2: number
   ): number => {
     const R = 6371; // Earth's radius in kilometers
     const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -198,13 +200,13 @@ const UpcomingReservations = ({
     reservationStartTime.setHours(startHour, startMinute, 0, 0);
 
     const checkinWindowEnd = new Date(
-      reservationStartTime.getTime() + 15 * 60 * 1000,
+      reservationStartTime.getTime() + 15 * 60 * 1000
     );
     const now = new Date();
 
     if (now < reservationStartTime || now > checkinWindowEnd) {
       alert(
-        "You can only check in within 15 minutes of the start of your reservation.",
+        "You can only check in within 15 minutes of the start of your reservation."
       );
       fetchUpcomingReservations();
       return;
@@ -233,14 +235,14 @@ const UpcomingReservations = ({
             userLat,
             userLon,
             targetLat,
-            targetLon,
+            targetLon
           );
 
           if (distance > maxDistance) {
             alert(
               `You are too far from the location. You are ${distance.toFixed(
-                2,
-              )} km away. Please be within 1 km to check in.`,
+                2
+              )} km away. Please be within 1 km to check in.`
             );
             return;
           }
@@ -260,14 +262,14 @@ const UpcomingReservations = ({
         (error) => {
           console.error("Error getting location:", error);
           alert(
-            "Failed to get your location. Please enable location services and try again.",
+            "Failed to get your location. Please enable location services and try again."
           );
         },
         {
           enableHighAccuracy: true,
           timeout: 10000,
           maximumAge: 0,
-        },
+        }
       );
     } catch (error) {
       console.error("Error in handleCheckIn:", error);
@@ -293,7 +295,7 @@ const UpcomingReservations = ({
               reservationStartTime.setHours(startHour, startMinute, 0, 0);
 
               const checkinWindowEnd = new Date(
-                reservationStartTime.getTime() + 15 * 60 * 1000,
+                reservationStartTime.getTime() + 15 * 60 * 1000
               );
               const now = new Date();
 
@@ -303,13 +305,13 @@ const UpcomingReservations = ({
                   if (!userId) return;
                   await cancelReservation(reservation.id);
                   console.log(
-                    `Reservation ${reservation.id} automatically cancelled.`,
+                    `Reservation ${reservation.id} automatically cancelled.`
                   );
                   fetchUpcomingReservations(); // Refresh the list
                 } catch (error) {
                   console.error(
                     `Failed to auto-cancel reservation ${reservation.id}:`,
-                    error,
+                    error
                   );
                 }
               }
