@@ -47,13 +47,14 @@ export const getAvailableTimeslots = (
 
       timeslots = timeslots.filter((slot) => {
         // Get slot start time in *total minutes from midnight*
-        const startTimeString = slot.split("-")[0]; // e.g., "0930"
-        const startHours = parseInt(startTimeString.substring(0, 2), 10);
-        const startMinutes = parseInt(startTimeString.substring(2, 4), 10);
-        const startTimeInMinutes = startHours * 60 + startMinutes;
+        const endTimeString = slot.split("-")[1]; // e.g., "0930"
+        const endHours = parseInt(endTimeString.substring(0, 2), 10);
+        const endMinutes = parseInt(endTimeString.substring(2, 4), 10);
+        const endTimeInMinutes = endHours * 60 + endMinutes;
 
-        // Only include timeslots that start at least 15 minutes from now
-        return startTimeInMinutes + 15 > currentMinutes;
+        // include slot only if it ends more than 15 minutes from now
+        // so that user can still check in
+        return endTimeInMinutes - 15 >= currentMinutes;
       });
     }
 
