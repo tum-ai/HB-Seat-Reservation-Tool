@@ -301,7 +301,7 @@ const UpcomingReservations = ({
                 // Missed check-in, so cancel the reservation
                 try {
                   if (!userId) return;
-                  await cancelReservation(reservation.id, userId);
+                  await cancelReservation(reservation.id);
                   console.log(
                     `Reservation ${reservation.id} automatically cancelled.`,
                   );
@@ -333,7 +333,7 @@ const UpcomingReservations = ({
     }
 
     try {
-      await cancelReservation(reservationId, userId);
+      await cancelReservation(reservationId);
       alert("Reservation cancelled successfully!");
 
       // Refresh the reservations list
