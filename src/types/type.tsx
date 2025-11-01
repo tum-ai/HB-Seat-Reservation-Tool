@@ -29,7 +29,7 @@ export type Reservation = {
   id: string;
   userId: string;
   resourceId: string;
-  date: string; 
+  date: string;
   timeslots: JSON;
   status: "Reserved" | "Cancelled" | "Completed";
 };
