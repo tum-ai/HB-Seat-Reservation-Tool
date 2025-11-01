@@ -425,7 +425,8 @@ const ReservationFlow = ({
               })()}
             </p>
             <p>
-              <strong>Time:</strong> {selectedTimeslots.join(", ")}
+              <strong>Time:</strong> {selectedTimeslots[0].substring(0, 5)} -{" "}
+              {selectedTimeslots[selectedTimeslots.length - 1].substring(6)}
             </p>
             <p>
               <strong>Room:</strong> {selectedRoom?.name}
