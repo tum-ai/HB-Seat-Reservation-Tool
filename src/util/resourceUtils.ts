@@ -1,4 +1,3 @@
-// src/util/resourceUtils.ts
 import { supabase } from "../lib/supabase";
 import type { Availability, Resource } from "../types/type";
 import { formatTimeslot, weekdayNames } from "./dateUtils";
@@ -42,11 +41,19 @@ export const getAvailableTimeslots = (
     const isToday = dateObj.toDateString() === today.toDateString();
 
     if (isToday) {
-      const currentTime = today.getHours() * 100 + today.getMinutes();
+      // Get current time in *total minutes from midnight*
+      // e.g., 9:30 AM becomes (9 * 60) + 30 = 570
+      const currentMinutes = today.getHours() * 60 + today.getMinutes();
+
       timeslots = timeslots.filter((slot) => {
-        const endTimeStr = slot.split("-")[1];
-        const endTime = parseInt(endTimeStr, 10);
-        return endTime >= currentTime;
+        // Get slot start time in *total minutes from midnight*
+        const startTimeString = slot.split("-")[0]; // e.g., "0930"
+        const startHours = parseInt(startTimeString.substring(0, 2), 10);
+        const startMinutes = parseInt(startTimeString.substring(2, 4), 10);
+        const startTimeInMinutes = startHours * 60 + startMinutes;
+
+        // Only include timeslots that start at least 15 minutes from now
+        return startTimeInMinutes + 15 > currentMinutes;
       });
     }
 
