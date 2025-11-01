@@ -36,6 +36,7 @@ const ReservationCard = ({
             stroke="currentColor"
             viewBox="0 0 24 24"
           >
+            <title>Time</title>
             <path
               strokeLinecap="round"
               strokeLinejoin="round"

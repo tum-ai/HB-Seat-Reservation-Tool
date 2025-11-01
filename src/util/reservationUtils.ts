@@ -6,7 +6,7 @@ import { unformatTimeslot, weekdayNames } from "./dateUtils";
 export const updateResourceAvailability = async (
   desk: Resource,
   date: string,
-  timeslot: string
+  timeslot: string,
 ) => {
   const currentAvailability: Availability =
     typeof desk.availability === "string"
@@ -40,27 +40,30 @@ export const createReservation = async (
   deskId: string,
   userId: string,
   date: string,
-  timeslots: string[]
+  timeslots: string[],
 ) => {
-  const { data, error } = await supabase.from("reservations").insert([
-    {
-      resourceId: deskId,
-      userId: userId,
-      date: new Date(date).toISOString(),
-      timeslots: timeslots,
-    },
-  ]).select();
+  const { data, error } = await supabase
+    .from("reservations")
+    .insert([
+      {
+        resourceId: deskId,
+        userId: userId,
+        date: new Date(date).toISOString(),
+        timeslots: timeslots,
+      },
+    ])
+    .select();
   if (error) {
     throw new Error(error.message);
   }
 
-  updateUserReservations(userId, date, data![0].id);
+  updateUserReservations(userId, date, data?.[0].id);
 };
 
 const updateUserReservations = async (
   userId: string,
   _date: string,
-  reservationId: string
+  reservationId: string,
 ) => {
   /* get user's current reservations */
   const { data: userData, error: fetchError } = await supabase
@@ -94,7 +97,7 @@ const updateUserReservations = async (
 
 export const revertAvailability = async (
   deskId: string,
-  originalAvailability: JSON | null
+  originalAvailability: JSON | null,
 ) => {
   const { error } = await supabase
     .from("resources")
@@ -103,7 +106,7 @@ export const revertAvailability = async (
 
   if (error) {
     alert(
-      `CRITICAL: Failed to revert availability change for resource ${deskId}. Please check resource availability manually. Error: ${error.message}`
+      `CRITICAL: Failed to revert availability change for resource ${deskId}. Please check resource availability manually. Error: ${error.message}`,
     );
   }
 };
@@ -112,7 +115,7 @@ export const getFutureReservationsForDesk = async (deskId: string) => {
   // Get today's date at midnight to include today's reservations
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  
+
   const { data, error } = await supabase
     .from("reservations")
     .select()
@@ -157,7 +160,10 @@ export const checkInReservation = async (reservationId: string) => {
   }
 };
 
-export const cancelReservation = async (reservationId: string, userId: string) => {
+export const cancelReservation = async (
+  reservationId: string,
+  userId: string,
+) => {
   // Delete the reservation
   const { error: reservationDeleteError } = await supabase
     .from("reservations")
@@ -182,7 +188,7 @@ export const cancelReservation = async (reservationId: string, userId: string) =
 
   const currentReservations: string[] = affectedUser?.reservations || [];
   const updatedReservations = currentReservations.filter(
-    (id) => id !== reservationId
+    (id) => id !== reservationId,
   );
 
   // Update user's reservations array
@@ -197,4 +203,3 @@ export const cancelReservation = async (reservationId: string, userId: string) =
     throw new Error(userUpdateError.message);
   }
 };
-

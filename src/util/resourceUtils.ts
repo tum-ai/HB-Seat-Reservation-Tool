@@ -5,68 +5,70 @@ import { formatTimeslot, weekdayNames } from "./dateUtils";
 
 // Get desks for selected room
 export const getDesksForRoom = (
-	room: Resource,
-	resources: Resource[],
+  room: Resource,
+  resources: Resource[],
 ): Resource[] => {
-	if (!room.subResources || room.subResources.length === 0) {
-		return [];
-	}
-	const desks = resources.filter(
-		(resource) =>
-			resource.type === "Desk" && room.subResources.includes(resource.id),
-	);
-	return desks.sort((a, b) => a.name.localeCompare(b.name));
+  if (!room.subResources || room.subResources.length === 0) {
+    return [];
+  }
+  const desks = resources.filter(
+    (resource) =>
+      resource.type === "Desk" && room.subResources.includes(resource.id),
+  );
+  return desks.sort((a, b) => a.name.localeCompare(b.name));
 };
 
 // Get availability timeslots for a desk on a specific date
 export const getAvailableTimeslots = (
-	desk: Resource,
-	date: string,
+  desk: Resource,
+  date: string,
 ): string[] => {
-	if (!desk.availability) {
-		return [];
-	}
+  if (!desk.availability) {
+    return [];
+  }
 
-	try {
-		const availability: Availability =
-			typeof desk.availability === "string"
-				? JSON.parse(desk.availability)
-				: (desk.availability as unknown as Availability);
+  try {
+    const availability: Availability =
+      typeof desk.availability === "string"
+        ? JSON.parse(desk.availability)
+        : (desk.availability as unknown as Availability);
 
-		const dateObj = new Date(date);
-		const weekdayName = weekdayNames[dateObj.getDay()];
+    const dateObj = new Date(date);
+    const weekdayName = weekdayNames[dateObj.getDay()];
 
-		let timeslots = availability[weekdayName] || [];
+    let timeslots = availability[weekdayName] || [];
 
-		const today = new Date();
-		const isToday = dateObj.toDateString() === today.toDateString();
+    const today = new Date();
+    const isToday = dateObj.toDateString() === today.toDateString();
 
-		if (isToday) {
-			const currentTime = today.getHours() * 100 + today.getMinutes();
-			timeslots = timeslots.filter((slot) => {
-				const endTimeStr = slot.split("-")[1];
-				const endTime = parseInt(endTimeStr, 10);
-				return endTime >= currentTime;
-			});
-		}
+    if (isToday) {
+      const currentTime = today.getHours() * 100 + today.getMinutes();
+      timeslots = timeslots.filter((slot) => {
+        const endTimeStr = slot.split("-")[1];
+        const endTime = parseInt(endTimeStr, 10);
+        return endTime >= currentTime;
+      });
+    }
 
-		return timeslots.map(formatTimeslot);
-	} catch (error) {
-		console.error("Error parsing availability:", error);
-		return [];
-	}
+    return timeslots.map(formatTimeslot);
+  } catch (error) {
+    console.error("Error parsing availability:", error);
+    return [];
+  }
 };
 
 // Fetch resources by their IDs
-export const fetchResourcesByIds = async (resourceIds: string[]): Promise<Resource[]> => {
-	const { data: resources, error } = await supabase
-		.from("resources")
-		.select("*")
-		.in("id", resourceIds);
+export const fetchResourcesByIds = async (
+  resourceIds: string[],
+): Promise<Resource[]> => {
+  const { data: resources, error } = await supabase
+    .from("resources")
+    .select("*")
+    .in("id", resourceIds);
 
-	if (error) {
-		throw new Error(error.message);
-	}
+  if (error) {
+    throw new Error(error.message);
+  }
 
-	return resources || [];
+  return resources || [];
 };
