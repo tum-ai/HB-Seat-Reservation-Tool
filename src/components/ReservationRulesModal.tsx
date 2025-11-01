@@ -102,7 +102,7 @@ const ReservationRulesModal = ({ isOpen, onClose }: ReservationRulesModalProps) 
                 <li>Only book seats you intend to use</li>
                 <li className="font-bold">
                   <a
-                    href="/public/assets/Homebase_Rulebook.pdf"
+                    href="/assets/Homebase_Rulebook.pdf"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-blue-600 underline hover:text-blue-800 cursor-pointer"
