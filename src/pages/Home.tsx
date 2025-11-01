@@ -5,13 +5,13 @@ import ReservationRulesModal from "../components/ReservationRulesModal";
 import Timer from "../components/Timer";
 import UpcomingReservations from "../components/UpcomingReservations";
 import { getResources, getUserData, supabase } from "../lib/supabase";
-import type { Resource, User } from "../types/type";
+import type { Resource } from "../types/type";
 
 const Home = () => {
   const navigate = useNavigate();
 
   const [userId, setUserId] = useState<string | null>(null);
-  const [userData, setUserData] = useState<User | null>(null);
+  const [user, setUser] = useState<any | null>(null); 
   const [resources, setResources] = useState<Resource[]>([]);
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
   const [showRulesModal, setShowRulesModal] = useState<boolean>(true);
@@ -19,11 +19,14 @@ const Home = () => {
   useEffect(() => {
     const fetchUserId = async () => {
       const { data, error } = await supabase.auth.getUser();
-      if (error) {
+      if (error || !data.user) {
         setUserId(null);
+        setUser(null);
         return;
       }
-      setUserId(data?.user?.id || null);
+      const authUser = data.user;
+      setUser(authUser);
+      setUserId(authUser.id);
     };
     fetchUserId();
   }, []);
@@ -32,7 +35,7 @@ const Home = () => {
     const fetchUserData = async () => {
       if (userId) {
         const data = await getUserData(userId);
-        setUserData(data);
+        setUser(data);
       }
     };
     fetchUserData();
@@ -46,7 +49,7 @@ const Home = () => {
     fetchResources();
   }, []);
 
-  const username = userData?.name || userData?.email?.split("@")[0] || "Guest";
+  const displayName = user?.name || "";
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -77,7 +80,7 @@ const Home = () => {
           Sign Out
         </button>
       </div>
-      <h1 className="mt-4 text-5xl font-bold">Welcome {username}</h1>
+      <h1 className="mt-4 text-5xl font-bold">Welcome {displayName}</h1>
       <div>
         <UpcomingReservations
           userId={userId}
