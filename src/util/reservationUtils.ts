@@ -102,12 +102,12 @@ export const cancelReservation = async (reservationId: string) => {
 export const checkUserReservationConflict = async (
   userId: string,
   date: string,
-  timeslots: string[]
+  timeslots: string[],
 ) => {
   // Get the start of the selected day
   const selectedDate = new Date(date);
   selectedDate.setHours(0, 0, 0, 0);
-  
+
   // Get the end of the selected day
   const endOfDay = new Date(date);
   endOfDay.setHours(23, 59, 59, 999);
@@ -131,7 +131,7 @@ export const checkUserReservationConflict = async (
 
   // Check if any of the user's reservations overlap with the selected timeslots
   for (const reservation of userReservations) {
-    const reservedTimeslots = 
+    const reservedTimeslots =
       typeof reservation.timeslots === "string"
         ? JSON.parse(reservation.timeslots)
         : reservation.timeslots;
@@ -140,7 +140,7 @@ export const checkUserReservationConflict = async (
     const hasOverlap = timeslots.some((timeslot) =>
       Array.isArray(reservedTimeslots)
         ? reservedTimeslots.includes(timeslot)
-        : false
+        : false,
     );
 
     if (hasOverlap) {

@@ -5,7 +5,10 @@ interface ReservationRulesModalProps {
   onClose: () => void;
 }
 
-const ReservationRulesModal = ({ isOpen, onClose }: ReservationRulesModalProps) => {
+const ReservationRulesModal = ({
+  isOpen,
+  onClose,
+}: ReservationRulesModalProps) => {
   const [showModal, setShowModal] = useState(isOpen);
 
   useEffect(() => {
@@ -22,7 +25,8 @@ const ReservationRulesModal = ({ isOpen, onClose }: ReservationRulesModalProps) 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
-      <div
+      <button
+        type="button"
         className="absolute inset-0 bg-transparent bg-opacity-50"
         onClick={handleClose}
       />
@@ -32,10 +36,9 @@ const ReservationRulesModal = ({ isOpen, onClose }: ReservationRulesModalProps) 
         <div className="p-8">
           {/* Header */}
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-3xl font-bold text-gray-900">
-              ⚠️ Rules ⚠️
-            </h2>
+            <h2 className="text-3xl font-bold text-gray-900">⚠️ Rules ⚠️</h2>
             <button
+              type="button"
               onClick={handleClose}
               className="text-gray-400 hover:text-gray-600 transition-colors"
               aria-label="Close modal"
@@ -46,6 +49,7 @@ const ReservationRulesModal = ({ isOpen, onClose }: ReservationRulesModalProps) 
                 stroke="currentColor"
                 viewBox="0 0 24 24"
               >
+                <title>Close</title>
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -65,9 +69,18 @@ const ReservationRulesModal = ({ isOpen, onClose }: ReservationRulesModalProps) 
               <ul className="list-disc list-inside space-y-2 ml-2">
                 <li>Each user books for himself/herself</li>
                 <li>...but only one reservation per user per timeslot!</li>
-                <li>One reservation can only consist of CONSECUTIVE time slots</li>
-                <li>Remember to CHECK-IN: it's possible to check in up to 5 minutes before your reservation starts and 15 minutes after it starts.</li>
-                <li>You'll need to be in the Unite building and allow location access for check-in</li>
+                <li>
+                  One reservation can only consist of CONSECUTIVE time slots
+                </li>
+                <li>
+                  Remember to CHECK-IN: it's possible to check in up to 5
+                  minutes before your reservation starts and 15 minutes after it
+                  starts.
+                </li>
+                <li>
+                  You'll need to be in the Unite building and allow location
+                  access for check-in
+                </li>
               </ul>
             </section>
 
@@ -78,7 +91,9 @@ const ReservationRulesModal = ({ isOpen, onClose }: ReservationRulesModalProps) 
               <ul className="list-disc list-inside space-y-2 ml-2">
                 <li>Seats can be reserved between 8:00 AM and 24:00 PM</li>
                 <li>Booking window opens 7 days in advance</li>
-                <li>Same-day reservations are possible based on seat availability</li>
+                <li>
+                  Same-day reservations are possible based on seat availability
+                </li>
               </ul>
             </section>
 
@@ -87,8 +102,15 @@ const ReservationRulesModal = ({ isOpen, onClose }: ReservationRulesModalProps) 
                 🚫 Cancellation Policy
               </h3>
               <ul className="list-disc list-inside space-y-2 ml-2">
-                <li>If you made a mistake or can't make it in time, please cancel your reservation as soon as possible.</li>
-                <li>No-shows (missing check-in 15 minutes after reservation starts) will be recorded and may result in booking restrictions</li>
+                <li>
+                  If you made a mistake or can't make it in time, please cancel
+                  your reservation as soon as possible.
+                </li>
+                <li>
+                  No-shows (missing check-in 15 minutes after reservation
+                  starts) will be recorded and may result in booking
+                  restrictions
+                </li>
               </ul>
             </section>
 
@@ -116,7 +138,8 @@ const ReservationRulesModal = ({ isOpen, onClose }: ReservationRulesModalProps) 
             <div className="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
               <p className="text-sm text-blue-900">
                 <strong>Note:</strong> Violation of these rules may result in
-                temporary or permanent suspension of booking privileges and/or access to the homebase.
+                temporary or permanent suspension of booking privileges and/or
+                access to the homebase.
               </p>
             </div>
           </div>
@@ -124,6 +147,7 @@ const ReservationRulesModal = ({ isOpen, onClose }: ReservationRulesModalProps) 
           {/* Footer */}
           <div className="mt-8 flex justify-end">
             <button
+              type="button"
               onClick={handleClose}
               className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-semibold"
             >

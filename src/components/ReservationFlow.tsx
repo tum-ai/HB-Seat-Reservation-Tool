@@ -3,9 +3,9 @@ import { useAuth } from "../contexts/AuthContext";
 import type { Reservation, Resource } from "../types/type";
 import { formatDate, generateDates, getISODate } from "../util/dateUtils";
 import {
+  checkUserReservationConflict,
   createReservation,
   getFutureReservationsForDesk,
-  checkUserReservationConflict,
 } from "../util/reservationUtils";
 import { getAvailableTimeslots, getDesksForRoom } from "../util/resourceUtils";
 import ListEntry from "./ListEntry";
@@ -40,7 +40,7 @@ const ReservationFlow = ({
           // Fetch reservations for all desks for the selected date
           const allDesks = resources.filter((r) => r.type === "Desk");
           const reservationPromises = allDesks.map((desk) =>
-            getFutureReservationsForDesk(desk.id)
+            getFutureReservationsForDesk(desk.id),
           );
           const allReservationsData = await Promise.all(reservationPromises);
           const flattenedReservations = allReservationsData.flat();
@@ -99,7 +99,7 @@ const ReservationFlow = ({
       const newTimeslots = selectedTimeslots.filter((t) => t !== timeslot);
       if (!areTimeslotsConsecutive(newTimeslots)) {
         alert(
-          "Removing this timeslot would result in a non-consecutive selection. Please remove timeslots from the beginning or end of the selection."
+          "Removing this timeslot would result in a non-consecutive selection. Please remove timeslots from the beginning or end of the selection.",
         );
         return;
       }
@@ -147,7 +147,7 @@ const ReservationFlow = ({
       !user
     ) {
       alert(
-        "Please make sure you have selected a date, timeslots, and a desk."
+        "Please make sure you have selected a date, timeslots, and a desk.",
       );
       return;
     }
@@ -157,19 +157,19 @@ const ReservationFlow = ({
       const userConflict = await checkUserReservationConflict(
         user.id,
         selectedDate,
-        selectedTimeslots
+        selectedTimeslots,
       );
 
       if (userConflict) {
         alert(
-          "You already have a reservation during one or more of the selected timeslots. Please choose different timeslots or cancel your existing reservation first."
+          "You already have a reservation during one or more of the selected timeslots. Please choose different timeslots or cancel your existing reservation first.",
         );
         return;
       }
 
       // Check for conflicting reservations before creating the new reservation
       const latestReservations = await getFutureReservationsForDesk(
-        selectedDesk.id
+        selectedDesk.id,
       );
 
       const conflictingReservation = latestReservations.find((reservation) => {
@@ -191,7 +191,7 @@ const ReservationFlow = ({
           return selectedTimeslots.some((timeslot) =>
             Array.isArray(reservedTimeslots)
               ? reservedTimeslots.includes(timeslot)
-              : false
+              : false,
           );
         }
         return false;
@@ -199,13 +199,13 @@ const ReservationFlow = ({
 
       if (conflictingReservation) {
         alert(
-          "Sorry, this desk has already been reserved for one or more of the selected timeslots. Please choose a different desk or timeslots."
+          "Sorry, this desk has already been reserved for one or more of the selected timeslots. Please choose a different desk or timeslots.",
         );
 
         // Refetch all reservations to update the UI
         const allDesks = resources.filter((r) => r.type === "Desk");
         const reservationPromises = allDesks.map((desk) =>
-          getFutureReservationsForDesk(desk.id)
+          getFutureReservationsForDesk(desk.id),
         );
         const allReservationsData = await Promise.all(reservationPromises);
         const flattenedReservations = allReservationsData.flat();
@@ -220,7 +220,7 @@ const ReservationFlow = ({
         selectedDesk.id,
         user.id,
         selectedDate,
-        selectedTimeslots
+        selectedTimeslots,
       );
       alert("Reservation created successfully!");
 
@@ -228,7 +228,7 @@ const ReservationFlow = ({
       if (selectedDate) {
         const allDesks = resources.filter((r) => r.type === "Desk");
         const reservationPromises = allDesks.map((desk) =>
-          getFutureReservationsForDesk(desk.id)
+          getFutureReservationsForDesk(desk.id),
         );
         const allReservationsData = await Promise.all(reservationPromises);
         const flattenedReservations = allReservationsData.flat();
@@ -264,7 +264,7 @@ const ReservationFlow = ({
     return selectedTimeslots.every(
       (timeslot) =>
         deskTimeslots.includes(timeslot) &&
-        !reservedTimeslots.includes(timeslot)
+        !reservedTimeslots.includes(timeslot),
     );
   };
 
@@ -300,7 +300,7 @@ const ReservationFlow = ({
 
     // Check if any selected timeslot is already reserved
     return selectedTimeslots.some((timeslot) =>
-      reservedTimeslots.includes(timeslot)
+      reservedTimeslots.includes(timeslot),
     );
   };
 
@@ -310,8 +310,8 @@ const ReservationFlow = ({
         new Set(
           resources
             .filter((r) => r.type === "Desk")
-            .flatMap((desk) => getAvailableTimeslots(desk, selectedDate))
-        )
+            .flatMap((desk) => getAvailableTimeslots(desk, selectedDate)),
+        ),
       ).sort()
     : [];
 
@@ -322,7 +322,7 @@ const ReservationFlow = ({
 
   // Calculate room capacity: reserved desks / total desks
   const getRoomCapacity = (
-    room: Resource
+    room: Resource,
   ): { reserved: number; total: number } => {
     const desks = getAllDesksForRoom(room);
     const total = desks.length;
@@ -332,7 +332,7 @@ const ReservationFlow = ({
     }
 
     const reserved = desks.filter((desk) =>
-      isDeskReservedForSelectedTimeslots(desk)
+      isDeskReservedForSelectedTimeslots(desk),
     ).length;
 
     return { reserved, total };
@@ -348,7 +348,7 @@ const ReservationFlow = ({
             const deskTimeslots = getAvailableTimeslots(desk, selectedDate);
             // Check if desk has all selected timeslots in its availability
             return selectedTimeslots.every((timeslot) =>
-              deskTimeslots.includes(timeslot)
+              deskTimeslots.includes(timeslot),
             );
           });
         })
@@ -362,7 +362,7 @@ const ReservationFlow = ({
           const deskTimeslots = getAvailableTimeslots(desk, selectedDate);
           // Check if desk has all selected timeslots in its availability
           return selectedTimeslots.every((timeslot) =>
-            deskTimeslots.includes(timeslot)
+            deskTimeslots.includes(timeslot),
           );
         })
       : [];
@@ -480,10 +480,9 @@ const ReservationFlow = ({
           <h3 className="text-lg font-semibold mb-2">Reservation Summary</h3>
           <div className="space-y-1">
             <p>
-              <strong>Date:</strong>{" "}
-              {(() => {
+              <strong>Date:</strong> {(() => {
                 const selectedDateObject = dates.find(
-                  (d) => getISODate(d) === selectedDate
+                  (d) => getISODate(d) === selectedDate,
                 );
                 return selectedDateObject ? formatDate(selectedDateObject) : "";
               })()}
