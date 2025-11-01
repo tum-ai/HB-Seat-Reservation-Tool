@@ -5,6 +5,7 @@ import { formatDate, generateDates, getISODate } from "../util/dateUtils";
 import {
   createReservation,
   getFutureReservationsForDesk,
+  checkUserReservationConflict,
 } from "../util/reservationUtils";
 import { getAvailableTimeslots, getDesksForRoom } from "../util/resourceUtils";
 import ListEntry from "./ListEntry";
@@ -152,6 +153,20 @@ const ReservationFlow = ({
     }
 
     try {
+      // Check if user already has a reservation for the selected date and timeslots
+      const userConflict = await checkUserReservationConflict(
+        user.id,
+        selectedDate,
+        selectedTimeslots
+      );
+
+      if (userConflict) {
+        alert(
+          "You already have a reservation during one or more of the selected timeslots. Please choose different timeslots or cancel your existing reservation first."
+        );
+        return;
+      }
+
       // Check for conflicting reservations before creating the new reservation
       const latestReservations = await getFutureReservationsForDesk(
         selectedDesk.id
