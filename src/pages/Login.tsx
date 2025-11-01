@@ -48,7 +48,7 @@ const Login: React.FC = () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "slack_oidc",
       options: {
-        redirectTo: `http://localhost:5173/`,
+        redirectTo: import.meta.env.VITE_SLACK_CALLBACK_URL,
       },
     });
 
@@ -61,7 +61,7 @@ const Login: React.FC = () => {
   return (
     <div className="w-full h-dvh flex flex-col items-start p-20">
       <Timer />
-      <h1 className="text-3xl mt-10">Please book your slot</h1>
+      <h1 className="text-3xl mt-10">Sign in and start working!!!</h1>
       <form className="mt-10" onSubmit={handleSubmit}>
         <div>
           <label htmlFor={emailId} className="mr-3 text-3xl inline-block w-44">
