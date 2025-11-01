@@ -71,9 +71,37 @@ const ReservationFlow = ({
   };
 
   const handleTimeslotClick = (timeslot: string) => {
+    const areTimeslotsConsecutive = (timeslots: string[]): boolean => {
+      if (timeslots.length <= 1) {
+        return true;
+      }
+
+      const sortedTimeslots = [...timeslots].sort();
+
+      for (let i = 0; i < sortedTimeslots.length - 1; i++) {
+        const currentSlot = sortedTimeslots[i];
+        const nextSlot = sortedTimeslots[i + 1];
+
+        const currentEnd = currentSlot.split("-")[1];
+        const nextStart = nextSlot.split("-")[0];
+
+        if (currentEnd !== nextStart) {
+          return false;
+        }
+      }
+
+      return true;
+    };
+
     if (selectedTimeslots.includes(timeslot)) {
       // Remove the timeslot if already selected
       const newTimeslots = selectedTimeslots.filter((t) => t !== timeslot);
+      if (!areTimeslotsConsecutive(newTimeslots)) {
+        alert(
+          "Removing this timeslot would result in a non-consecutive selection. Please remove timeslots from the beginning or end of the selection.",
+        );
+        return;
+      }
       setSelectedTimeslots(newTimeslots);
       // Reset room and desk when timeslots change
       setSelectedRoom(null);
@@ -81,6 +109,10 @@ const ReservationFlow = ({
     } else {
       // Add the timeslot to the selection
       const newTimeslots = [...selectedTimeslots, timeslot].sort();
+      if (!areTimeslotsConsecutive(newTimeslots)) {
+        alert("You can only select consecutive timeslots.");
+        return;
+      }
       setSelectedTimeslots(newTimeslots);
       // Reset room and desk when timeslots change
       setSelectedRoom(null);
