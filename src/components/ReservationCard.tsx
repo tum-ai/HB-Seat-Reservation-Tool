@@ -47,7 +47,7 @@ const ReservationCard = ({
           <span className="font-medium">{timeRange}</span>
         </div>
       </div>
-      <div className="flex gap-2 self-start sm:self-center">
+      <div className="flex gap-2 justify-end items-center">
         {reservation.status === "Completed" && (
           <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full font-medium">
             Checked-in

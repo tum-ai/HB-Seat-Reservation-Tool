@@ -46,8 +46,6 @@ const UpcomingReservations = ({
         return;
       }
 
-      console.log("Fetched reservations:", reservations);
-
       // Fetch resource details for each reservation
       const resourceIds = [...new Set(reservations.map((r) => r.resourceId))];
       const resources = await fetchResourcesByIds(resourceIds);
@@ -136,11 +134,15 @@ const UpcomingReservations = ({
     const reservationStartTime = new Date(reservation.date);
     reservationStartTime.setHours(startHour, startMinute, 0, 0);
 
+    const checkinWindowStart = new Date(
+      reservationStartTime.getTime() - 5 * 60 * 1000
+    );
+
     const checkinWindowEnd = new Date(
       reservationStartTime.getTime() + 15 * 60 * 1000
     );
 
-    if (now >= reservationStartTime && now <= checkinWindowEnd) {
+    if (now >= checkinWindowStart && now <= checkinWindowEnd) {
       return "active"; // This is the check-in window
     }
 
@@ -228,7 +230,6 @@ const UpcomingReservations = ({
         async (position) => {
           const userLat = position.coords.latitude;
           const userLon = position.coords.longitude;
-          console.log("User coordinates:", userLat, userLon);
 
           // Calculate distance
           const distance = calculateDistance(

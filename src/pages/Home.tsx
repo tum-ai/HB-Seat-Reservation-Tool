@@ -27,7 +27,6 @@ const Home = () => {
   }, []);
 
   useEffect(() => {
-    console.log("userId changed:", userId);
     const fetchUserData = async () => {
       if (userId) {
         const data = await getUserData(userId);
@@ -41,7 +40,6 @@ const Home = () => {
     const fetchResources = async () => {
       const data = await getResources();
       setResources(data);
-      console.log("Fetched resources:", data);
     };
     fetchResources();
   }, []);
@@ -55,10 +53,8 @@ const Home = () => {
 
   const handleReservationUpdate = async () => {
     // Refetch resources when a reservation is cancelled or created
-    console.log("Refetching resources...");
     const data = await getResources();
     setResources(data);
-    console.log("Resources refetched:", data);
     // Trigger refresh of UpcomingReservations component
     setRefreshTrigger((prev) => prev + 1);
   };
