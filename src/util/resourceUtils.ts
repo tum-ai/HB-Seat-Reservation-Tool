@@ -14,7 +14,12 @@ export const getDesksForRoom = (
     (resource) =>
       resource.type === "Desk" && room.subResources.includes(resource.id),
   );
-  return desks.sort((a, b) => a.name.localeCompare(b.name));
+  const collator = new Intl.Collator(undefined, {
+    numeric: true,
+    sensitivity: "base",
+  });
+
+  return desks.sort((a, b) => collator.compare(a.name, b.name));
 };
 
 // Get availability timeslots for a desk on a specific date
