@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Reservation, Resource } from "../types/type";
 import { formatDate } from "../util/dateUtils";
-import { 
-  fetchUserReservations, 
-  checkInReservation, 
-  cancelReservation 
+import {
+  cancelReservation,
+  checkInReservation,
+  fetchUserReservations,
 } from "../util/reservationUtils";
 import { fetchResourcesByIds } from "../util/resourceUtils";
 import ReservationCard from "./ReservationCard";
@@ -12,7 +12,6 @@ import ReservationCard from "./ReservationCard";
 interface UpcomingReservationsProps {
   userId: string | null;
   onReservationCancelled?: () => void;
-  refreshTrigger?: number;
 }
 
 interface GroupedReservation {
@@ -24,7 +23,6 @@ interface GroupedReservation {
 const UpcomingReservations = ({
   userId,
   onReservationCancelled,
-  refreshTrigger,
 }: UpcomingReservationsProps) => {
   const [groupedReservations, setGroupedReservations] = useState<
     GroupedReservation[]
@@ -32,13 +30,7 @@ const UpcomingReservations = ({
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (userId) {
-      fetchUpcomingReservations();
-    }
-  }, [userId, refreshTrigger]);
-
-  const fetchUpcomingReservations = async () => {
+  const fetchUpcomingReservations = useCallback(async () => {
     if (!userId) return;
 
     try {
@@ -55,15 +47,11 @@ const UpcomingReservations = ({
       console.log("Fetched reservations:", reservations);
 
       // Fetch resource details for each reservation
-      const resourceIds = [
-        ...new Set(reservations.map((r) => r.resourceId)),
-      ];
+      const resourceIds = [...new Set(reservations.map((r) => r.resourceId))];
       const resources = await fetchResourcesByIds(resourceIds);
 
       // Create a map of resources for quick lookup
-      const resourceMap = new Map(
-        resources?.map((r) => [r.id, r]) || [],
-      );
+      const resourceMap = new Map(resources?.map((r) => [r.id, r]) || []);
 
       // Group reservations by date
       const grouped: { [key: string]: GroupedReservation } = {};
@@ -95,7 +83,13 @@ const UpcomingReservations = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId]); // Add userId to the dependency array of useCallback
+
+  useEffect(() => {
+    if (userId) {
+      fetchUpcomingReservations();
+    }
+  }, [userId, fetchUpcomingReservations]);
 
   const toggleDay = (date: string) => {
     const newExpanded = new Set(expandedDays);
@@ -108,7 +102,9 @@ const UpcomingReservations = ({
   };
 
   // Get reservation time status: 'expired', 'active', or 'upcoming'
-  const getReservationStatus = (reservation: Reservation): 'expired' | 'active' | 'upcoming' => {
+  const getReservationStatus = (
+    reservation: Reservation,
+  ): "expired" | "active" | "upcoming" => {
     const now = new Date();
     const reservationDate = new Date(reservation.date);
     const today = new Date();
@@ -117,12 +113,12 @@ const UpcomingReservations = ({
 
     // If reservation is in the future, it's upcoming
     if (reservationDate.getTime() > today.getTime()) {
-      return 'upcoming';
+      return "upcoming";
     }
 
     // If reservation is in the past, it's expired
     if (reservationDate.getTime() < today.getTime()) {
-      return 'expired';
+      return "expired";
     }
 
     // Reservation is today - check timeslots
@@ -130,21 +126,21 @@ const UpcomingReservations = ({
       ? reservation.timeslots
       : [];
 
-    if (timeslots.length === 0) return 'expired';
+    if (timeslots.length === 0) return "expired";
 
     // Get current time in HHMM format
-    const currentHour = now.getHours().toString().padStart(2, '0');
-    const currentMinute = now.getMinutes().toString().padStart(2, '0');
-    const currentTime = parseInt(`${currentHour}${currentMinute}`);
+    const currentHour = now.getHours().toString().padStart(2, "0");
+    const currentMinute = now.getMinutes().toString().padStart(2, "0");
+    const currentTime = parseInt(`${currentHour}${currentMinute}`, 10);
 
     // Check if current time falls within any timeslot (active) or past all slots (expired)
     let latestEndTime = 0;
     let isActive = false;
 
     for (const slot of timeslots) {
-      const [start, end] = slot.split('-');
-      const startTime = parseInt(start.replace(':', ''));
-      const endTime = parseInt(end.replace(':', ''));
+      const [start, end] = slot.split("-");
+      const startTime = parseInt(start.replace(":", ""), 10);
+      const endTime = parseInt(end.replace(":", ""), 10);
 
       // Track the latest end time
       if (endTime > latestEndTime) {
@@ -159,11 +155,11 @@ const UpcomingReservations = ({
 
     // If currently within a timeslot, it's active
     if (isActive) {
-      return 'active';
+      return "active";
     }
 
     // If past all timeslots, it's expired; otherwise upcoming
-    return currentTime > latestEndTime ? 'expired' : 'upcoming';
+    return currentTime > latestEndTime ? "expired" : "upcoming";
   };
 
   // Calculate distance between two coordinates using Haversine formula
@@ -171,7 +167,7 @@ const UpcomingReservations = ({
     lat1: number,
     lon1: number,
     lat2: number,
-    lon2: number
+    lon2: number,
   ): number => {
     const R = 6371; // Earth's radius in kilometers
     const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -179,9 +175,9 @@ const UpcomingReservations = ({
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   };
@@ -206,11 +202,16 @@ const UpcomingReservations = ({
           console.log("User coordinates:", userLat, userLon);
 
           // Calculate distance
-          const distance = calculateDistance(userLat, userLon, targetLat, targetLon);
+          const distance = calculateDistance(
+            userLat,
+            userLon,
+            targetLat,
+            targetLon,
+          );
 
           if (distance > maxDistance) {
             alert(
-              `You are too far from the location. You are ${distance.toFixed(2)} km away. Please be within 1 km to check in.`
+              `You are too far from the location. You are ${distance.toFixed(2)} km away. Please be within 1 km to check in.`,
             );
             return;
           }
@@ -230,14 +231,14 @@ const UpcomingReservations = ({
         (error) => {
           console.error("Error getting location:", error);
           alert(
-            "Failed to get your location. Please enable location services and try again."
+            "Failed to get your location. Please enable location services and try again.",
           );
         },
         {
           enableHighAccuracy: true,
           timeout: 10000,
           maximumAge: 0,
-        }
+        },
       );
     } catch (error) {
       console.error("Error in handleCheckIn:", error);
@@ -275,7 +276,9 @@ const UpcomingReservations = ({
   if (loading) {
     return (
       <div className="mb-8 p-4 sm:p-6 bg-white rounded-xl shadow-md">
-        <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Upcoming Reservations</h2>
+        <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">
+          Upcoming Reservations
+        </h2>
         <p className="text-sm sm:text-base text-gray-600">Loading...</p>
       </div>
     );
@@ -284,15 +287,21 @@ const UpcomingReservations = ({
   if (groupedReservations.length === 0) {
     return (
       <div className="mb-8 p-4 sm:p-6 bg-white rounded-xl shadow-md">
-        <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Upcoming Reservations</h2>
-        <p className="text-sm sm:text-base text-gray-600">No upcoming reservations.</p>
+        <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">
+          Upcoming Reservations
+        </h2>
+        <p className="text-sm sm:text-base text-gray-600">
+          No upcoming reservations.
+        </p>
       </div>
     );
   }
 
   return (
     <div className="mb-8 p-4 sm:p-6 bg-white rounded-xl shadow-md">
-      <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Upcoming Reservations</h2>
+      <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">
+        Upcoming Reservations
+      </h2>
       <div className="space-y-2 sm:space-y-3">
         {groupedReservations.map((group) => (
           <div
@@ -311,16 +320,21 @@ const UpcomingReservations = ({
                 </span>
                 <span className="text-xs sm:text-sm text-gray-600 sm:ml-3">
                   ({group.reservations.length}{" "}
-                  {group.reservations.length === 1 ? "reservation" : "reservations"})
+                  {group.reservations.length === 1
+                    ? "reservation"
+                    : "reservations"}
+                  )
                 </span>
               </div>
               <svg
-                className={`w-4 h-4 sm:w-5 sm:h-5 transform transition-transform flex-shrink-0 ${expandedDays.has(group.date) ? "rotate-180" : ""
-                  }`}
+                className={`w-4 h-4 sm:w-5 sm:h-5 transform transition-transform flex-shrink-0 ${
+                  expandedDays.has(group.date) ? "rotate-180" : ""
+                }`}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
               >
+                <title>Toggle visibility</title>
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -335,8 +349,10 @@ const UpcomingReservations = ({
               <div className="p-3 space-y-2">
                 {group.reservations.map((reservation) => {
                   const status = getReservationStatus(reservation);
-                  const canCheckIn = status === 'active' && reservation.status === "Reserved";
-                  const isExpired = status === 'expired' && reservation.status === "Reserved";
+                  const canCheckIn =
+                    status === "active" && reservation.status === "Reserved";
+                  const isExpired =
+                    status === "expired" && reservation.status === "Reserved";
 
                   return (
                     <ReservationCard
