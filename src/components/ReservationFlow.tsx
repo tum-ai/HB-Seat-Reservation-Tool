@@ -152,6 +152,55 @@ const ReservationFlow = ({
     }
 
     try {
+      // Check for conflicting reservations before creating the new reservation
+      const latestReservations = await getFutureReservationsForDesk(
+        selectedDesk.id
+      );
+
+      const conflictingReservation = latestReservations.find((reservation) => {
+        const reservationDate = new Date(reservation.date)
+          .toISOString()
+          .split("T")[0];
+
+        if (
+          reservationDate === selectedDate &&
+          reservation.status !== "Cancelled"
+        ) {
+          // Parse the timeslots from the reservation
+          const reservedTimeslots =
+            typeof reservation.timeslots === "string"
+              ? JSON.parse(reservation.timeslots)
+              : reservation.timeslots;
+
+          // Check if there's any overlap between selected and reserved timeslots
+          return selectedTimeslots.some((timeslot) =>
+            Array.isArray(reservedTimeslots)
+              ? reservedTimeslots.includes(timeslot)
+              : false
+          );
+        }
+        return false;
+      });
+
+      if (conflictingReservation) {
+        alert(
+          "Sorry, this desk has already been reserved for one or more of the selected timeslots. Please choose a different desk or timeslots."
+        );
+
+        // Refetch all reservations to update the UI
+        const allDesks = resources.filter((r) => r.type === "Desk");
+        const reservationPromises = allDesks.map((desk) =>
+          getFutureReservationsForDesk(desk.id)
+        );
+        const allReservationsData = await Promise.all(reservationPromises);
+        const flattenedReservations = allReservationsData.flat();
+        setAllReservations(flattenedReservations);
+        setSelectedDesk(null);
+
+        return;
+      }
+
+      // No conflicts, proceed with creating the reservation
       await createReservation(
         selectedDesk.id,
         user.id,
