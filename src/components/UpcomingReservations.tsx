@@ -101,7 +101,6 @@ const UpcomingReservations = ({
     setExpandedDays(newExpanded);
   };
 
-  // Get reservation time status: 'expired', 'active', or 'upcoming'
   const getReservationStatus = (
     reservation: Reservation,
   ): "expired" | "active" | "upcoming" => {
@@ -123,43 +122,33 @@ const UpcomingReservations = ({
 
     // Reservation is today - check timeslots
     const timeslots = Array.isArray(reservation.timeslots)
-      ? reservation.timeslots
+      ? reservation.timeslots.sort()
       : [];
 
     if (timeslots.length === 0) return "expired";
 
-    // Get current time in HHMM format
-    const currentHour = now.getHours().toString().padStart(2, "0");
-    const currentMinute = now.getMinutes().toString().padStart(2, "0");
-    const currentTime = parseInt(`${currentHour}${currentMinute}`, 10);
+    const firstSlot = timeslots[0];
+    const [start] = firstSlot.split("-");
+    const [startHour, startMinute] = start.split(":").map(Number);
 
-    // Check if current time falls within any timeslot (active) or past all slots (expired)
-    let latestEndTime = 0;
-    let isActive = false;
+    const reservationStartTime = new Date(reservation.date);
+    reservationStartTime.setHours(startHour, startMinute, 0, 0);
 
-    for (const slot of timeslots) {
-      const [start, end] = slot.split("-");
-      const startTime = parseInt(start.replace(":", ""), 10);
-      const endTime = parseInt(end.replace(":", ""), 10);
+    const checkinWindowEnd = new Date(
+      reservationStartTime.getTime() + 15 * 60 * 1000,
+    );
 
-      // Track the latest end time
-      if (endTime > latestEndTime) {
-        latestEndTime = endTime;
-      }
-
-      // Check if currently within this timeslot
-      if (currentTime >= startTime && currentTime <= endTime) {
-        isActive = true;
-      }
+    if (now >= reservationStartTime && now <= checkinWindowEnd) {
+      return "active"; // This is the check-in window
     }
 
-    // If currently within a timeslot, it's active
-    if (isActive) {
-      return "active";
+    // Check if we are past the check-in window
+    if (now > checkinWindowEnd) {
+      return "expired";
     }
 
-    // If past all timeslots, it's expired; otherwise upcoming
-    return currentTime > latestEndTime ? "expired" : "upcoming";
+    // Otherwise, it's upcoming for today
+    return "upcoming";
   };
 
   // Calculate distance between two coordinates using Haversine formula
@@ -183,6 +172,44 @@ const UpcomingReservations = ({
   };
 
   const handleCheckIn = async (reservationId: string) => {
+    const reservation = groupedReservations
+      .flatMap((g) => g.reservations)
+      .find((r) => r.id === reservationId);
+
+    if (!reservation) {
+      alert("Reservation not found.");
+      return;
+    }
+
+    const timeslots = Array.isArray(reservation.timeslots)
+      ? reservation.timeslots.sort()
+      : [];
+
+    if (timeslots.length === 0) {
+      alert("Invalid reservation: no timeslots found.");
+      return;
+    }
+
+    const firstSlot = timeslots[0];
+    const [start] = firstSlot.split("-");
+    const [startHour, startMinute] = start.split(":").map(Number);
+
+    const reservationStartTime = new Date(reservation.date);
+    reservationStartTime.setHours(startHour, startMinute, 0, 0);
+
+    const checkinWindowEnd = new Date(
+      reservationStartTime.getTime() + 15 * 60 * 1000,
+    );
+    const now = new Date();
+
+    if (now < reservationStartTime || now > checkinWindowEnd) {
+      alert(
+        "You can only check in within 15 minutes of the start of your reservation.",
+      );
+      fetchUpcomingReservations();
+      return;
+    }
+
     // Target location coordinates (replace with actual building coordinates)
     const targetLat = import.meta.env.VITE_TARGET_LATITUDE;
     const targetLon = import.meta.env.VITE_TARGET_LONGITUDE;
@@ -211,7 +238,9 @@ const UpcomingReservations = ({
 
           if (distance > maxDistance) {
             alert(
-              `You are too far from the location. You are ${distance.toFixed(2)} km away. Please be within 1 km to check in.`,
+              `You are too far from the location. You are ${distance.toFixed(
+                2,
+              )} km away. Please be within 1 km to check in.`,
             );
             return;
           }
@@ -245,6 +274,53 @@ const UpcomingReservations = ({
       alert("An error occurred during check-in.");
     }
   };
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      groupedReservations.forEach((group) => {
+        group.reservations.forEach(async (reservation) => {
+          if (reservation.status === "Reserved") {
+            const timeslots = Array.isArray(reservation.timeslots)
+              ? reservation.timeslots.sort()
+              : [];
+
+            if (timeslots.length > 0) {
+              const firstSlot = timeslots[0];
+              const [start] = firstSlot.split("-");
+              const [startHour, startMinute] = start.split(":").map(Number);
+
+              const reservationStartTime = new Date(reservation.date);
+              reservationStartTime.setHours(startHour, startMinute, 0, 0);
+
+              const checkinWindowEnd = new Date(
+                reservationStartTime.getTime() + 15 * 60 * 1000,
+              );
+              const now = new Date();
+
+              if (now > checkinWindowEnd) {
+                // Missed check-in, so cancel the reservation
+                try {
+                  if (!userId) return;
+                  await cancelReservation(reservation.id, userId);
+                  console.log(
+                    `Reservation ${reservation.id} automatically cancelled.`,
+                  );
+                  fetchUpcomingReservations(); // Refresh the list
+                } catch (error) {
+                  console.error(
+                    `Failed to auto-cancel reservation ${reservation.id}:`,
+                    error,
+                  );
+                }
+              }
+            }
+          }
+        });
+      });
+    }, 60000); // Check every minute
+
+    return () => clearInterval(interval);
+  }, [groupedReservations, userId, fetchUpcomingReservations]);
 
   const handleCancelReservation = async (reservationId: string) => {
     if (!window.confirm("Are you sure you want to cancel this reservation?")) {
