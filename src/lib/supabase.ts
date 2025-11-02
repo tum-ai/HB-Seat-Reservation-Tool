@@ -7,25 +7,19 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export async function getUserData(userId: string) {
-  const { data, error } = await supabase
-    .from("users")
-    .select()
-    .eq("id", userId)
-    .single();
+  const { data, error } = await supabase.rpc("get_user_data", {
+    user_id: userId,
+  });
 
-  if (error || !data) {
+  if (error || !data || data.length === 0) {
     return null;
   }
-  return data;
+  return data[0];
 }
 
 export async function getResources() {
-  const { data, error } = await supabase
-    .from("resources")
-    .select()
-    .neq("name", "Lisbon")
-    .neq("name", "Zurich")
-    .neq("name", "Leipzig");
+  const { data, error } = await supabase.rpc("get_resources");
+
   if (error || !data) {
     return [];
   }
@@ -33,7 +27,8 @@ export async function getResources() {
 }
 
 export async function getReservations() {
-  const { data, error } = await supabase.from("reservations").select();
+  const { data, error } = await supabase.rpc("get_reservations");
+
   if (error || !data) {
     return [];
   }

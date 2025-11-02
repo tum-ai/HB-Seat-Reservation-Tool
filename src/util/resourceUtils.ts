@@ -74,10 +74,12 @@ export const getAvailableTimeslots = (
 export const fetchResourcesByIds = async (
   resourceIds: string[],
 ): Promise<Resource[]> => {
-  const { data: resources, error } = await supabase
-    .from("resources")
-    .select("*")
-    .in("id", resourceIds);
+  const { data: resources, error } = await supabase.rpc(
+    "get_resources_by_ids",
+    {
+      resource_ids: resourceIds,
+    },
+  );
 
   if (error) {
     throw new Error(error.message);
