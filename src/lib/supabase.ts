@@ -20,7 +20,12 @@ export async function getUserData(userId: string) {
 }
 
 export async function getResources() {
-  const { data, error } = await supabase.from("resources").select();
+  const { data, error } = await supabase
+    .from("resources")
+    .select()
+    .neq("name", "Lisbon")
+    .neq("name", "Zurich")
+    .neq("name", "Leipzig");
   if (error || !data) {
     return [];
   }

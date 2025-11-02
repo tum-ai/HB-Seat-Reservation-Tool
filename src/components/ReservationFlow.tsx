@@ -445,7 +445,7 @@ const ReservationFlow = ({
           <div className="space-y-2">
             <h3 className="text-lg font-semibold mb-2">Select Desk</h3>
             <p className="text-sm text-gray-600 mb-2">
-              Red = Reserved, Green = Available
+              {selectedRoom.name === "Panorama" ? "2 seats per desk" : "1 seat per desk"}
             </p>
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {allDesksInRoom.map((desk) => {
