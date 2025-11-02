@@ -3,7 +3,6 @@ export type User = {
   name?: string;
   email: string;
   belongsToTeam: string[];
-  reservations: string[];
   created_at: string;
 };
 

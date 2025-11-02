@@ -49,7 +49,7 @@ const Home = () => {
     fetchResources();
   }, []);
 
-  const displayName = user?.name || "";
+  const displayName = user?.name || "Guest";
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
