@@ -4,27 +4,25 @@ export const createReservation = async (
   deskId: string,
   userId: string,
   date: string,
-  timeslots: string[],
+  timeslots: string[]
 ) => {
-  const { error } = await supabase
-    .from("reservations")
-    .insert([
-      {
-        resourceId: deskId,
-        userId: userId,
-        date: new Date(date).toISOString(),
-        timeslots: timeslots,
-      },
-    ])
-    .select();
+  const { data, error } = await supabase.rpc("create_reservation", {
+    _resource_id: deskId,
+    _user_id: userId,
+    _date: new Date(date).toISOString(),
+    _timeslots: timeslots,
+  });
+
   if (error) {
     throw new Error(error.message);
   }
+
+  return data;
 };
 
 export const revertAvailability = async (
   deskId: string,
-  originalAvailability: JSON | null,
+  originalAvailability: JSON | null
 ) => {
   const { error } = await supabase
     .from("resources")
@@ -33,7 +31,7 @@ export const revertAvailability = async (
 
   if (error) {
     alert(
-      `CRITICAL: Failed to revert availability change for resource ${deskId}. Please check resource availability manually. Error: ${error.message}`,
+      `CRITICAL: Failed to revert availability change for resource ${deskId}. Please check resource availability manually. Error: ${error.message}`
     );
   }
 };
@@ -102,7 +100,7 @@ export const cancelReservation = async (reservationId: string) => {
 export const checkUserReservationConflict = async (
   userId: string,
   date: string,
-  timeslots: string[],
+  timeslots: string[]
 ) => {
   // Get the start of the selected day
   const selectedDate = new Date(date);
@@ -140,7 +138,7 @@ export const checkUserReservationConflict = async (
     const hasOverlap = timeslots.some((timeslot) =>
       Array.isArray(reservedTimeslots)
         ? reservedTimeslots.includes(timeslot)
-        : false,
+        : false
     );
 
     if (hasOverlap) {
