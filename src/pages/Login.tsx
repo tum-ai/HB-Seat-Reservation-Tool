@@ -59,7 +59,7 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="w-full h-dvh flex flex-col items-start p-20">
+    <div className="w-full h-dvh flex flex-col items-start p-8 md:p-16">
       <Timer />
       <h1 className="text-3xl mt-10">Sign in and start working!!!</h1>
       <form className="mt-10" onSubmit={handleSubmit}>
@@ -123,18 +123,15 @@ const Login: React.FC = () => {
               Redirecting...
             </div>
           ) : (
-            <button
-              type="button"
-              onClick={signInWithSlack}
-              className="cursor-pointer w-full h-12 object-contain"
-            >
+            <div className="flex justify-center">
               <img
                 src="https://platform.slack-edge.com/img/sign_in_with_slack.png"
                 srcSet="https://platform.slack-edge.com/img/sign_in_with_slack.png 1x, https://platform.slack-edge.com/img/sign_in_with_slack.png 2x"
                 alt="Sign in with Slack"
-                style={{ display: "block" }}
+                className="h-12 cursor-pointer"
+                onClick={signInWithSlack}
               />
-            </button>
+            </div>
           )}
         </div>
       </form>
